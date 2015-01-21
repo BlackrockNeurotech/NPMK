@@ -1,0 +1,175 @@
+***** NPMK Version 2.6.0.0 *****
+
+    NEW FUNCTIONS
+	- NSxToHL: Strips the header information from a NSx file and saves it 
+      into a new .dat file. This is useful for programs that only need the
+      binary data, e.g. Klusters.
+	- openNSxHL: Opens the header-less data into a variable.
+	  This is useful for programs that only need the binary data, 
+      e.g. Klusters.
+	- edgeDetect: It can be used to detect rising or falling edges in a 
+      signal.
+
+***** NPMK Version 2.7.0.0 *****
+
+    NEW FEATURES
+    - edgeDetect
+        - Added the ability to automatically estimate threshold when 
+          threshold is not provided as an argument.
+        - Updated help.
+    - plotAverageWaveform
+        - Added the ability to plot scaled or non-scaled plots. By default,
+          the plots are scaled. 
+        - The color of the first unit is always selected at random, so when
+          a channel only has 1 unit, that 1 unit will be a different color
+          (visualization only).
+    BUG FIXES
+    - KTUEAMapFile
+        - Fixed a minor bug related to reading the mapfile.
+
+    - saveNEVTetrodes
+        - Fixed a bug related to the # of input arguments and compatibility
+          with other functions.
+	- Updated help.
+    - BlackrockLoadingEngine
+	- Fixed many bugs with the MClust loading engine.
+
+***** NPMK Version 2.7.1.0 *****
+
+    BUG FIXES
+    - saveNEVSubSpikes
+        - Fixed a bug where the data was not being saved correctly on Windows
+          machines.
+        - Fixed a bug where tetrodes higher than 10 were overwriting tetrodes 1
+          through 10 over and over again.
+
+***** NPMK Version 2.7.2.0 *****
+
+    BUG FIXES
+    - openNSx
+    	- Fixed an error in the help file.
+        - Fixed the way DayOfWeek is read in MetaTags.
+
+    - openNEV
+        - Fixed the way DayOfWeek is read in MetaTags.
+        - Fixed 'noread' argument, so when passed, openNEV will not read the 
+          spike waveforms.
+
+***** NPMK Version 2.7.3.0: 25 January 2014 *****
+
+    BUG FIXES
+    - openNEV
+        - Fixed a bug that resulted from passing 'read' to openNEV.
+
+    - openNSx
+	- Fixed a bug where with skipFactor being read correctly as a num.
+
+***** NPMK Version 2.8.0.0: 27 February 2014 *****
+    BUG FIXES
+    - openNSx
+	- Updated feature to save data headers for a paused file. It is a
+	  dependent feature for seperatePausedNSx.
+
+    - saveNEVSpikes
+	- Fixed a bug where the data saved incorrectly under the Windows OS.
+	- Sped up the processing significantly.
+
+***** NPMK Version 2.8.1.0: 28 February 2014 *****
+    BUG FIXED
+    - openNEV
+	- Fixed bug related to loading data with t:XX:XX argument.
+
+NPMK Version 2.8.2.0: 5 May 2014
+    BUG FIXED
+    - openNSx 5.1.11.0:
+	- Fixed an issue where 1 sample would not be read when using the
+	  t:xx:xx argument and 'sample'.
+	- Fixed an error when 'duration' was used to load specific data length.
+
+***** NPMK Version 2.8.3.0: 12 June 2014 *****
+
+- openNSx
+% 5.2.0.0:
+%   - It removes the extra ElectrodesInfo entried for channels not
+%     read if 'c:XX:XX' or 'e:XX:XX' are used.
+%   - It reports variable ChannelCount under MetaTags correctly.
+%   - It automatically compensate for any NSx file with non-0 beginnings
+%     and adds 0s for to the begining of the file to properly align the
+%     timestamps.
+
+- openNSxSync
+% 1.1.0.0:
+%   - Added the ability to read in a single channel only.
+%   - Took out the re-aligning segment and assigning it to openNSx.
+
+
+***** NPMK Version 2.8.4.0: 12 June 2014 ***** 
+
+- openNSx
+% 5.2.1.0: June 12, 2014
+%   - Fixed a small bug where extra 0s were tacked on to the beginning of
+%     paused file segments.
+%   - Updated the version.
+
+- openNSxSync
+% 1.1.1.0: 12 June 2014
+%   - Adjusting the file for a non-0 timestamp start since openNSx now
+%     ignores this for paused files.
+
+- openNEV
+% 4.4.3.0: 12 June 2014
+%   - Fixed a typo in the help.
+
+
+***** NPMK Version 2.8.5.0: 12 June 2014 ***** 
+
+- openNEV
+% 4.4.3.1: 13 June 2014
+%   - Updated the version numbers in the help and in the function itself.
+
+- openNSx
+% 5.2.2.0: June 13, 2014
+%   - Fixed bug for when 'noread' was used on a paused file.
+
+- openNSxSync
+% 1.1.0.0: June 13, 2014
+%   - Added the ability to open a file by passing on the file name.
+
+- syncPatternDetectNSx
+% 1.0.0.0: June 08, 2014
+%   - Initial release.
+
+- syncPatternDetectNEV
+% 1.0.0.0: June 08, 2014
+%   - Initial release.
+
+
+***** NPMK Version 3.0.0.0: 02 December 2014 ***** 
+
+- openNEV
+% 5.0.0.0: 02 December 2014
+%   - Fixed a bug where Application name wasn't being read properly.
+%   - Warnings now don't show up in more places when "nowarning" is used.
+%   - Added field FileExt to MetaTags.
+%   - Added 512 synchronized reading capability
+%   - Fixed the date in NSx.MetaTags.DateTime
+
+- openNSx
+% 6.0.0.0: December 2, 2014
+%   - Fixed a bug related to file format 2.1 not being read correctly.
+%   - Corrected the way Filename, FileExt, and FilePath was being
+%     processed.
+%   - File dialogue now only shows NSx files on non Windows-based
+%     computers.
+%   - Added 512 synchronized reading capability
+%   - Now on non-Windows computers only NSx files are shown in the file
+%     dialogue.
+%   - Fixed the date in NSx.MetaTags.DateTime
+
+syncPatternDetectNSx
+% 1.0.1.0: July 7, 2014
+%   - Updated the help file
+
+syncPatternDetectNEV (new file)
+% 1.0.0.0: July 7, 2014
+%   - Initial release.
