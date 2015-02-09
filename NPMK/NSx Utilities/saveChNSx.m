@@ -82,7 +82,7 @@ elseif length(varargin) == 2
         end
     elseif strcmpi(varargin{1}, 'reset')
         resetFlag = 'reset';
-        if isnumberic(varargin{2})
+        if isnumeric(varargin{2})
             channels = varargin{2};
             [path fname fext] = openFile;
         else
@@ -90,7 +90,7 @@ elseif length(varargin) == 2
         end
     else
         [path fname fext] = fileparts(varargin{1});
-        if isnumberic(varargin{2})
+        if isnumeric(varargin{2})
             channels = varargin{2};
             resetFlag = 'noreset';
         else
@@ -109,7 +109,7 @@ elseif length(varargin) == 3
         end
     elseif strcmpi(varargin{1}, 'reset')
         resetFlag = 'reset';
-        if isnumberic(varargin{2})
+        if isnumeric(varargin{2})
             channels = varargin{2};
             [path fname fext] = fileparts(varargin{3});
         else
@@ -118,7 +118,7 @@ elseif length(varargin) == 3
         end
     else
         [path fname fext] = fileparts(varargin{1});
-        if isnumberic(varargin{2})
+        if isnumeric(varargin{2})
             channels = varargin{2};
             resetFlag = varargin{3};
         else
@@ -213,6 +213,6 @@ function [path fname fext] = openFile
 function channels = getChannels
     channels = input('What channels would you like to save as a separate file? ');
     while ~isnumeric(channels)
-        disp('The response should be a numberical value (e.g. 3 or [4,6:10]).');
+        disp('The response should be a numerical value (e.g. 3 or [4,6:10]).');
         channels = input('What channels would you like to save as a separate file? ');
     end
