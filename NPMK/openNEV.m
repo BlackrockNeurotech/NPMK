@@ -3,7 +3,7 @@ function varargout = openNEV(varargin)
 % openNEV
 %
 % Opens an .nev file for reading, returns all file information in a NEV
-% structure. Works with File Spec 2.1 & 2.2 & 2.3.
+% structure. Works with File Spec 2.1 & 2.2 & 2.3. Now available on GitHub.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 % Use OUTPUT = openNEV(fname, 'noread', 'report', 'noparse', 'nowarning', 
 %                             'nosave', 'nomat', 'uV', 'overwrite').
