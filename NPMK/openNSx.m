@@ -3,7 +3,7 @@ function varargout = openNSx(varargin)
 % openNSx
 % 
 % Opens and reads an NSx file then returns all file information in a NSx
-% structure. Works with File Spec 2.1, 2.2 and 2.3.
+% structure. Works with File Spec 2.1, 2.2 and 2.3. Now availabl on GitHub.
 % Use OUTPUT = openNSx(fname, 'read', 'report', 'e:xx:xx', 'c:xx:xx', 't:xx:xx', 'mode', 'precision', 'skipfactor').
 % 
 % All input arguments are optional. Input arguments can be in any order.
