@@ -3,7 +3,7 @@ function varargout = openNEV(varargin)
 % openNEV
 %
 % Opens an .nev file for reading, returns all file information in a NEV
-% structure. Works with File Spec 2.1 & 2.2 & 2.3. Now available on GitHub.
+% structure. Works with File Spec 2.1 & 2.2 & 2.3.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 % Use OUTPUT = openNEV(fname, 'noread', 'report', 'noparse', 'nowarning', 
 %                             'nosave', 'nomat', 'uV', 'overwrite').
@@ -161,8 +161,14 @@ function varargout = openNEV(varargin)
 %   - Fixed a bug where Application name wasn't being read properly.
 %   - Warnings now don't show up in more places when "nowarning" is used.
 %   - Added field FileExt to MetaTags.
-%   - Added 512 synchronized reading capability
-%   - Fixed the date in NSx.MetaTags.DateTime
+%   - Added 512 synchronized reading capability.
+%   - Fixed the date in NSx.MetaTags.DateTime.
+%
+% 5.1.0.0: 28 March 2015
+%   - Added the ability to read from networked drives in Windows.
+%   - Fixed the DateTime variable in MetaTags.
+%   - Fixed the date in NSx.MetaTags.DateTime (again).
+%   - Fixed a bug related to >512-ch data loading.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -224,7 +230,8 @@ for i=1:length(varargin)
             if length(temp)>3 && ...
                     (strcmpi(temp(3),'\') || ...
                      strcmpi(temp(1),'/') || ...
-                     strcmpi(temp(2),'/'))                
+                     strcmpi(temp(2),'/') || ...
+                     strcmpi(temp(1:2), '\\'))                
                 fileFullPath = varargin{i};
                 if exist(fileFullPath, 'file') ~= 2
                     disp('The file does not exist.');
@@ -302,12 +309,13 @@ end
 
 syncShift = 0;
 
-
 % Check to see if 512 setup and calculate offset
 if strcmpi(Flags.MultiNSP, 'multinsp')
-    fiveTwelveFlag = regexp(fileName, '-i[0123]-');
+    fiveTwelveFlag = regexp(fileFullPath, '-i[0123]-');
     if ~isempty(fiveTwelveFlag)
         syncShift = multiNSPSync(fileFullPath);
+    else
+        Flags.MultiNSP = 'no';
     end
 end
 
@@ -384,9 +392,7 @@ clear fileFullPath;
 
 %% Parsing and validating FileSpec and DateTime variables
 NEV.MetaTags.DateTimeRaw = t.';
-NEV.MetaTags.DateTime = [num2str(t(2)) '/'  num2str(t(3)) '/' num2str(t(1))...
-	' ' datestr(t(4)+2, 'dddd') ' ' num2str(t(5)) ':'  ...
-	num2str(t(6)) ':'  num2str(t(7)) '.' num2str(t(8))];
+NEV.MetaTags.DateTime = datestr(datenum(t(1), t(2), t(4), t(5), t(6), t(7)));
 clear t;
 
 %% Removing extra garbage characters from the Comment field.

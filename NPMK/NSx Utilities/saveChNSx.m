@@ -50,6 +50,11 @@ function NSx = saveChNSx(varargin)
 % 2.1.0.1:
 %   - Added the flag 'reset' as an optional argument to OFS compatibility..
 %
+% 2.1.1.0:
+%   - Fixed the "numberic" bug.
+%   - Fixed saved file name bug.
+%   - Fixed other reading bugs.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Validating input arguments
@@ -160,7 +165,7 @@ if NSx.RawData.PausedFile
 end
 
 % Writing header into the file
-newFilename = fullfile(path, [fname(1:end-4) '-chandec-' fname(end-2:end) fext]);
+newFilename = fullfile(path, [fname '-chandec' fext]);
 if exist(newFilename, 'file') == 2
     overwriteFlag = input('The file already exists. Overwrite? ', 's');
     if ~strcmpi(overwriteFlag, 'y')
@@ -170,12 +175,12 @@ if exist(newFilename, 'file') == 2
 end
         
 FIDw = fopen(newFilename, 'w+', 'ieee-le');
-NSx.RawData.Headers(311) = uint8(length(channels));
 
 % Removing the extra channels from the header
 channelHeaderBytes = 66;
 currentPosition = length(NSx.RawData.Headers);
-totalNumberOfChannels = NSx.MetaTags.ChannelCount;
+totalNumberOfChannels = NSx.RawData.Headers(311);
+NSx.RawData.Headers(311) = uint8(length(channels));
 allChannels = totalNumberOfChannels:-1:1;
 thChannelToKeep = 0;
 for chanIDX = 1:totalNumberOfChannels
@@ -213,6 +218,6 @@ function [path fname fext] = openFile
 function channels = getChannels
     channels = input('What channels would you like to save as a separate file? ');
     while ~isnumeric(channels)
-        disp('The response should be a numerical value (e.g. 3 or [4,6:10]).');
+        disp('The response should be a numberical value (e.g. 3 or [4,6:10]).');
         channels = input('What channels would you like to save as a separate file? ');
     end

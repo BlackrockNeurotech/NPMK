@@ -166,10 +166,27 @@ NPMK Version 2.8.2.0: 5 May 2014
 %     dialogue.
 %   - Fixed the date in NSx.MetaTags.DateTime
 
-syncPatternDetectNSx
+- syncPatternDetectNSx
 % 1.0.1.0: July 7, 2014
 %   - Updated the help file
 
-syncPatternDetectNEV (new file)
+- syncPatternDetectNEV (new file)
 % 1.0.0.0: July 7, 2014
 %   - Initial release.
+
+
+***** NPMK Version 3.1.0.0: March 31, 2015 ***** 
+
+- openNSxSync 1.1.1.0
+%   - Fixed a minor bug.
+
+- saveChNSx 2.1.1.0
+%   - Fixed the "numberic" bug.
+%   - Fixed saved file name bug.
+%   - Fixed other reading bugs.
+
+- openNSx 6.1.0.0%   - Added the ability to read from networked drives in Windows.%   - Fixed the DateTime variable in MetaTags.%   - Fixed the date in NSx.MetaTags.DateTime (again).%   - Fixed a bug related to starting and stopping packets when a specific%     time is passed to the function.%   - Fixed a bug where 512+ ch rules were being applied to smaller channel%     count configuration.
+
+- openNEV 5.1.0.0%   - Added the ability to read from networked drives in Windows.%   - Fixed the DateTime variable in MetaTags.%   - Fixed the date in NSx.MetaTags.DateTime (again).%   - Fixed a bug related to >512-ch data loading.
+
+- syncPatternFinderNSx 1.0.1.0%   - Fixed a bug where the extension wsan't specified for the file when%     the input file was not specified.
