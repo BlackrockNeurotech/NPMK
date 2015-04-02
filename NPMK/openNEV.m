@@ -170,6 +170,10 @@ function varargout = openNEV(varargin)
 %   - Fixed the date in NSx.MetaTags.DateTime (again).
 %   - Fixed a bug related to >512-ch data loading.
 %
+% 5.1.1.0: 1 April 2015
+%   - Fixed a bug with NeuroMotive when spike window is changed from the
+%     original length.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining structures
@@ -666,8 +670,8 @@ if strcmpi(Flags.ReadData, 'read')
             tmp.MarkerCount   = tRawData(13:14, trackingPacketIDIndices);
             tmp.MarkerCount   = typecast(tmp.MarkerCount(:), 'uint16').';
             
-            tmp.rigidBodyPoints = tRawData(15:102, trackingPacketIDIndices);
-            tmp.rigidBodyPoints = reshape(typecast(tmp.rigidBodyPoints(:), 'uint16'), 44, length(tmp.ParentID));
+            tmp.rigidBodyPoints = tRawData(15:NEV.MetaTags.PacketBytes, trackingPacketIDIndices);
+            tmp.rigidBodyPoints = reshape(typecast(tmp.rigidBodyPoints(:), 'uint16'), size(tmp.rigidBodyPoints, 1)/2, size(tmp.rigidBodyPoints, 2));
             
             objectIndex = [0 '1' '2' '3' '4' '1' '2' '3' '4'];
             if (isfield(NEV, 'ObjTrackInfo'))
