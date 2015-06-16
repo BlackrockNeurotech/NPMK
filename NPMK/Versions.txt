@@ -185,13 +185,34 @@ NPMK Version 2.8.2.0: 5 May 2014
 %   - Fixed saved file name bug.
 %   - Fixed other reading bugs.
 
-- openNSx 6.1.0.0%   - Added the ability to read from networked drives in Windows.%   - Fixed the DateTime variable in MetaTags.%   - Fixed the date in NSx.MetaTags.DateTime (again).%   - Fixed a bug related to starting and stopping packets when a specific%     time is passed to the function.%   - Fixed a bug where 512+ ch rules were being applied to smaller channel%     count configuration.
+- openNSx 6.1.0.0
+%   - Added the ability to read from networked drives in Windows.
+%   - Fixed the DateTime variable in MetaTags.
+%   - Fixed the date in NSx.MetaTags.DateTime (again).
+%   - Fixed a bug related to starting and stopping packets when a specific
+%     time is passed to the function.
+%   - Fixed a bug where 512+ ch rules were being applied to smaller channel
+%     count configuration.
 
-- openNEV 5.1.0.0%   - Added the ability to read from networked drives in Windows.%   - Fixed the DateTime variable in MetaTags.%   - Fixed the date in NSx.MetaTags.DateTime (again).%   - Fixed a bug related to >512-ch data loading.
+- openNEV 5.1.0.0
+%   - Added the ability to read from networked drives in Windows.
+%   - Fixed the DateTime variable in MetaTags.
+%   - Fixed the date in NSx.MetaTags.DateTime (again).
+%   - Fixed a bug related to >512-ch data loading.
 
-- syncPatternFinderNSx 1.0.1.0%   - Fixed a bug where the extension wsan't specified for the file when%     the input file was not specified.
+- syncPatternFinderNSx 1.0.1.0
+%   - Fixed a bug where the extension wsan't specified for the file when
+%     the input file was not specified.
 
 
 ***** NPMK Version 3.1.1.0: April 1, 2015 ***** 
 
-- openNEV 5.1.1.0%   - Fixed a bug with NeuroMotive when spike window is changed from the%     original length.
+- openNEV 5.1.1.0
+%   - Fixed a bug with NeuroMotive when spike window is changed from the
+%     original length.
+
+***** NPMK Version 3.1.2.0: July 15, 2015 ***** 
+
+% openNSx 6.1.1.0: 15 July 2015
+%   - Bug fixes related to timestamps when the recording didn't start at
+%     proctime 0.

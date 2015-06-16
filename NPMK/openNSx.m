@@ -185,6 +185,10 @@ function varargout = openNSx(varargin)
 %   - Fixed a bug where 512+ ch rules were being applied to smaller channel
 %     count configuration.
 %
+% 6.1.1.0: 15 July 2015
+%   - Bug fixes related to timestamps when the recording didn't start at
+%     proctime 0.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -528,14 +532,14 @@ elseif strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
             fseek(FID, -4, 'cof');
             fwrite(FID, startTimeStamp, '*uint32');
         end
-        NSx.MetaTags.Timestamp(segmentCount)  = 0;
+        NSx.MetaTags.Timestamp(segmentCount)  = startTimeStamp;
         NSx.MetaTags.DataPoints(segmentCount) = fread(FID, 1, 'uint32');
         f.BOData(segmentCount) = double(ftell(FID));
         fseek(FID, NSx.MetaTags.DataPoints(segmentCount) * ChannelCount * 2, 'cof');
         f.EOData(segmentCount) = double(ftell(FID));
         % Fixing the bug in 6.01.00.00 TOC where DataPoints is not
         % updated and is left as 0
-        NSx.MetaTags.DataPoints(segmentCount) = (f.EOData(segmentCount)-f.BOData(segmentCount))/(ChannelCount*2);
+        % NSx.MetaTags.DataPoints(segmentCount) = (f.EOData(segmentCount)-f.BOData(segmentCount))/(ChannelCount*2);
     end
 end
 
@@ -716,7 +720,7 @@ if length(NSx.MetaTags.Timestamp) > 1
     if strcmpi(ReadData, 'read')
         NSx.Data{cellIDX} = [zeros(NSx.MetaTags.ChannelCount, NSx.MetaTags.Timestamp(cellIDX)) NSx.Data{cellIDX}];
     end
-    NSx.MetaTags.DataPoints(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) - NSx.MetaTags.Timestamp(cellIDX);
+    NSx.MetaTags.DataPoints(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) + NSx.MetaTags.Timestamp(cellIDX);
     NSx.MetaTags.DataDurationSec(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) / NSx.MetaTags.SamplingFreq;
     NSx.MetaTags.Timestamp(cellIDX) = 0;
 else
