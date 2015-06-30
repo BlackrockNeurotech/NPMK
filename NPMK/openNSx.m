@@ -723,7 +723,7 @@ if length(NSx.MetaTags.Timestamp) > 1
     NSx.MetaTags.DataPoints(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) + NSx.MetaTags.Timestamp(cellIDX);
     NSx.MetaTags.DataDurationSec(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) / NSx.MetaTags.SamplingFreq;
     NSx.MetaTags.Timestamp(cellIDX) = 0;
-else
+elseif strcmpi(ReadData, 'read')
     NSx.Data = [zeros(NSx.MetaTags.ChannelCount, NSx.MetaTags.Timestamp) NSx.Data];
     NSx.MetaTags.DataPoints = size(NSx.Data,2);
     NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints / NSx.MetaTags.SamplingFreq;

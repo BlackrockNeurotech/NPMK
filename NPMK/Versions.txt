@@ -211,8 +211,13 @@ NPMK Version 2.8.2.0: 5 May 2014
 %   - Fixed a bug with NeuroMotive when spike window is changed from the
 %     original length.
 
-***** NPMK Version 3.1.2.0: July 15, 2015 ***** 
+***** NPMK Version 3.1.2.0: June 15, 2015 ***** 
 
 % openNSx 6.1.1.0: 15 July 2015
 %   - Bug fixes related to timestamps when the recording didn't start at
 %     proctime 0.
+
+***** NPMK Version 3.1.3.0: June 30, 2015 *****
+
+% 5.1.2.0: June 30 2015
+%   - Fixed a bug regarding the number of datapoints when 'no read' is used.

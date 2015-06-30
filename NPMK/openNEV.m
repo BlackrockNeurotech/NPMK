@@ -174,6 +174,9 @@ function varargout = openNEV(varargin)
 %   - Fixed a bug with NeuroMotive when spike window is changed from the
 %     original length.
 %
+% 5.1.2.0: June 30 2015
+%   - Fixed a bug regarding the number of packages when 'no read' is used.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining structures
@@ -630,6 +633,8 @@ if strcmpi(Flags.ReadData, 'read')
             NEV.Data.Comments.Color = tRawData(9:12, commentIndices);
             NEV.Data.Comments.Color = typecast(NEV.Data.Comments.Color(:), 'uint32').';
             NEV.Data.Comments.Text  = char(tRawData(13:Trackers.countPacketBytes, commentIndices).');
+     
+            %NEV.MetaTags.Comment(find(NEV.MetaTags.Comment==0,1):end) = 0;
             
             % Transferring NeuroMotive Events to its own structure
             neuroMotiveEvents = find(NEV.Data.Comments.CharSet == 255);
