@@ -185,9 +185,13 @@ function varargout = openNSx(varargin)
 %   - Fixed a bug where 512+ ch rules were being applied to smaller channel
 %     count configuration.
 %
-% 6.1.1.0: 15 July 2015
+% 6.1.1.0: 15 June 2015
 %   - Bug fixes related to timestamps when the recording didn't start at
 %     proctime 0.
+%
+% 6.1.2.0: 7 July 2015
+%   - Bug fixes related to information that separatePausedNSx is dependent
+%   on
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -472,11 +476,13 @@ NSx.RawData.Headers = fread(FID, f.EOexH, '*uint8');
 NSx.RawData.DataHeader = fread(FID, 9, '*uint8');
 fseek(FID, f.EOexH, 'bof');
 
+
+
 %% Added by NH - Feb 19, 2014
 % Create incrementing loop to skip from dataheader to dataheader and 
 % collect the dataheader data in individual cells
 headerCount = 0;
-if NSx.RawData.PausedFile
+if NSx.RawData.PausedFile == 1
     while double(ftell(FID)) < f.EOF
         headerCount = headerCount + 1;
         DataHeader{headerCount} = fread(FID, 9);
@@ -566,6 +572,47 @@ if length(NSx.MetaTags.DataPoints) > 1
         fclose(FID); clear variables; if nargout; varargout{1} = -1; end; return;
     end
 end
+
+%% Added by NH - Feb 19, 2014
+% Create incrementing loop to skip from dataheader to dataheader and 
+% collect the dataheader data in individual cells
+
+CurrentPlace = ftell(FID);
+fseek(FID, f.EOexH, 'bof');
+headerCount = 0;
+if NSx.RawData.PausedFile == 1
+    while double(ftell(FID)) < f.EOF
+        headerCount = headerCount + 1;
+        DataHeader{headerCount} = fread(FID, 9);
+        fseek(FID,-9,'cof');
+        fread(FID,5);
+        DataPoints(headerCount) = fread(FID,1,'uint32');
+
+
+        f.BOData(headerCount) = double(ftell(FID));
+        fseek(FID, DataPoints(headerCount) * ChannelCount * 2, 'cof');
+        f.EOData(headerCount) = double(ftell(FID));
+    end
+
+    % Create an array that will contain all of the dataheader data
+    % collected in the cells above
+    FinalDataHeader = [];
+
+    %Fill the above mentioned pre-created array
+    for i = 1:headerCount
+        FinalDataHeader = cat(1,FinalDataHeader,DataHeader(i));
+    end
+
+    % Convert to correct type for interpreting in separatingPausedNSx
+    FinalDataHeader = cell2mat(FinalDataHeader);
+
+    NSx.RawData.DataHeader = FinalDataHeader;
+
+    fseek(FID, f.EOexH, 'bof');
+end
+
+fseek(FID,CurrentPlace,'bof');
+
 
 %% Copying ChannelID to MetaTags for filespec 2.2 and 2.3 for compatibility with filespec 2.1
 if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
