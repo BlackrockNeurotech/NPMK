@@ -177,6 +177,10 @@ function varargout = openNEV(varargin)
 % 5.1.2.0: June 30 2015
 %   - Fixed a bug regarding the number of packages when 'no read' is used.
 %
+% 5.1.3.0: July 10 2015
+%   - Fixed a bug with NeuroMotive data reading when both objects and
+%     markers were being recorded.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining structures
@@ -678,11 +682,19 @@ if strcmpi(Flags.ReadData, 'read')
             tmp.rigidBodyPoints = tRawData(15:NEV.MetaTags.PacketBytes, trackingPacketIDIndices);
             tmp.rigidBodyPoints = reshape(typecast(tmp.rigidBodyPoints(:), 'uint16'), size(tmp.rigidBodyPoints, 1)/2, size(tmp.rigidBodyPoints, 2));
             
-            objectIndex = [0 '1' '2' '3' '4' '1' '2' '3' '4'];
             if (isfield(NEV, 'ObjTrackInfo'))
                 for IDX = 1:size(NEV.ObjTrackInfo,2)
                     emptyChar = find(NEV.ObjTrackInfo(IDX).TrackableName == 0, 1);
-                    NEV.ObjTrackInfo(IDX).TrackableName(emptyChar) = objectIndex(IDX);
+                    if isnan(str2double(NEV.ObjTrackInfo(IDX).TrackableName(emptyChar-1)))
+                        if ~strcmpi(NEV.ObjTrackInfo(IDX-1).TrackableName(1:3), NEV.ObjTrackInfo(IDX).TrackableName(1:3))
+                            objectIndex = 1;
+                        else
+                            objectIndex = objectIndex + 1;
+                        end
+                        NEV.ObjTrackInfo(IDX).TrackableName(emptyChar) = num2str(objectIndex);
+                    else
+                        NEV.ObjTrackInfo(IDX).TrackableName(emptyChar) = [];
+                    end
                     indicesOfEvent = find(tmp.NodeID == IDX-1);
                     if ~isempty(indicesOfEvent)
                         NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStamp = tmp.TimeStamp(indicesOfEvent);
