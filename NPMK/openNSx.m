@@ -74,6 +74,14 @@ function varargout = openNSx(varargin)
 %                 and 'sample'.
 %                 DEFAULT: reads 'sample'.
 %
+%   'uV':         Will read the spike waveforms in unit of uV instead of
+%                 raw values. Note that this conversion may lead to loss of
+%                 information (e.g. 15/4 = 4) since the waveforms type will
+%                 stay in int16. It's recommended to read raw spike
+%                 waveforms and then perform the conversion at a later
+%                 time.
+%                 DEFAULT: will read waveform information in raw.
+%
 %   'precision':  This will specify the precision for NSx file. If set to
 %                 'double' the NSx data will be read as 'double' and if set
 %                 to 'short', the NSx data will be read as 'int16' data
@@ -189,9 +197,11 @@ function varargout = openNSx(varargin)
 %   - Bug fixes related to timestamps when the recording didn't start at
 %     proctime 0.
 %
-% 6.1.2.0: 7 July 2015
-%   - Bug fixes related to information that separatePausedNSx is dependent
-%   on
+% 6.2.0.0: 1 October 2015
+%   - Fixed a bug related to reading the correct length of time when a skip
+%     factor was used.
+%   - Bug fixes related to information that separatePausedNSx depends on.
+%   - Added 'uV' as an option to read the data in the unit of uV.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -202,7 +212,7 @@ NSx.MetaTags = struct('FileTypeID',[],'SamplingLabel',[],'ChannelCount',[],'Samp
                       'Timestamp', [], 'DataPoints', [], 'DataDurationSec', [], 'openNSxver', [], 'Filename', [], 'FilePath', [], ...
                       'FileExt', []);
 
-NSx.MetaTags.openNSxver = '6.1.0.0';
+NSx.MetaTags.openNSxver = '6.2.0.0';
 
 % Defining constants
 ExtHeaderLength = 66;
@@ -234,6 +244,8 @@ for i=1:length(varargin)
         ReadData = inputArgument;
     elseif strcmpi(inputArgument, 'nomultinsp')
         multinsp = 'no';
+    elseif strcmpi(inputArgument, 'uV')
+        waveformUnits = 'uV';
     elseif strcmpi(inputArgument, 'read')
         ReadData = inputArgument;
     elseif (strncmp(inputArgument, 't:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'duration')
@@ -370,6 +382,7 @@ if ~exist('precisionType', 'var'); precisionType = '*short=>short'; end
 if ~exist('skipFactor', 'var');    skipFactor = 1; end
 if ~exist('modifiedTime', 'var');  modifiedTime = 0; end
 if ~exist('multinsp', 'var');      multinsp = 'yes'; end
+if ~exist('waveformUnits', 'var'); waveformUnits = 'raw'; end
 
 % Check to see if 512 setup and calculate offset
 if strcmpi(multinsp, 'yes')
@@ -671,6 +684,7 @@ if ~NSx.RawData.PausedFile
             StartPacket = StartPacket * NSx.MetaTags.SamplingFreq * 3600 + 1;
             EndPacket = EndPacket * NSx.MetaTags.SamplingFreq * 3600;
     end
+    
     %% Validate StartPacket and EndPacket to make sure they do not exceed the
     %  length of packets in the file. If EndPacket is over then the last packet
     %  will be set for EndPacket. If StartPacket is over then will exist with an
@@ -701,6 +715,11 @@ if ~NSx.RawData.PausedFile
         pause;
         EndPacket = NSx.MetaTags.DataPoints - 1;
     end
+    
+    % Adjusting the endPacket for the skipFactor to reduce the length of
+    % the data read.
+    EndPacket = EndPacket / skipFactor; 
+        
     DataLength = EndPacket - StartPacket + 1;
 end
 % from now StartPacket and EndPacket are in terms of Samples and are zero-based
@@ -765,13 +784,13 @@ NSx.MetaTags.ChannelID(channelIDToDelete) = [];
 if length(NSx.MetaTags.Timestamp) > 1
     cellIDX = 1; % only do this for the first cell segment and not modify the subsequent segments
     if strcmpi(ReadData, 'read')
-        NSx.Data{cellIDX} = [zeros(NSx.MetaTags.ChannelCount, NSx.MetaTags.Timestamp(cellIDX)) NSx.Data{cellIDX}];
+        NSx.Data{cellIDX} = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp(cellIDX) / skipFactor)) NSx.Data{cellIDX}];
     end
     NSx.MetaTags.DataPoints(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) + NSx.MetaTags.Timestamp(cellIDX);
     NSx.MetaTags.DataDurationSec(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) / NSx.MetaTags.SamplingFreq;
     NSx.MetaTags.Timestamp(cellIDX) = 0;
 elseif strcmpi(ReadData, 'read')
-    NSx.Data = [zeros(NSx.MetaTags.ChannelCount, NSx.MetaTags.Timestamp) NSx.Data];
+    NSx.Data = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp / skipFactor)) NSx.Data];
     NSx.MetaTags.DataPoints = size(NSx.Data,2);
     NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints / NSx.MetaTags.SamplingFreq;
     NSx.MetaTags.Timestamp = 0;
@@ -782,6 +801,12 @@ if strcmpi(multinsp, 'yes')
     NSx.MetaTags.DataPoints = size(NSx.Data,2);
     NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints / NSx.MetaTags.SamplingFreq;
 end
+
+%% Adjusting for the data's unit.
+if strcmpi(waveformUnits, 'uV')
+    NSx.Data = NSx.Data / 4;
+end
+waveformUnits
 
 %% Calculating the DataPoints in seconds and adding it to MetaData
 NSx.MetaTags.DataDurationSec = double(NSx.MetaTags.DataPoints)/NSx.MetaTags.SamplingFreq;
