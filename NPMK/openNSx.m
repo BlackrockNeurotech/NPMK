@@ -806,7 +806,7 @@ end
 if strcmpi(waveformUnits, 'uV')
     NSx.Data = NSx.Data / 4;
 end
-waveformUnits
+%waveformUnits
 
 %% Calculating the DataPoints in seconds and adding it to MetaData
 NSx.MetaTags.DataDurationSec = double(NSx.MetaTags.DataPoints)/NSx.MetaTags.SamplingFreq;
