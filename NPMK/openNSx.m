@@ -804,7 +804,11 @@ end
 
 %% Adjusting for the data's unit.
 if strcmpi(waveformUnits, 'uV')
-    NSx.Data = NSx.Data / 4;
+    if iscell(NSx.Data)
+        NSx.Data = cellfun(@(x) x / 4, NSx.Data,'UniformOutput',0);
+    else
+        NSx.Data = NSx.Data / 4;
+    end
 end
 %waveformUnits
 
