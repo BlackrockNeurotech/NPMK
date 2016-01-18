@@ -128,7 +128,7 @@ function varargout = openNEV(varargin)
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   Kian Torab
-%   kian@blackrockmicro.com
+%   support@blackrockmicro.com
 %   Blackrock Microsystems
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Version History
@@ -261,6 +261,8 @@ for i=1:length(varargin)
                 readTime = [temp(1), temp(end)];
                 Flags.SaveFile = 'nosave';
                 Flags.NoMAT = 'nomat';
+            elseif (strncmp(temp, 'c:', 2) && temp(3) ~= '\' && temp(3) ~= '/')
+                Flags.selChannels = str2num(temp(3:end)); %#ok<ST2NM>
             else
                 if ~isnumeric(varargin{i})
                     disp(['Invalid argument ''' varargin{i} ''' .']);
@@ -314,6 +316,8 @@ if ~isfield(Flags, 'waveformUnits'); Flags.waveformUnits = 'raw'; end;
 if ~isfield(Flags, 'digIOBits');     Flags.digIOBits = '16bits'; end;
 if ~isfield(Flags, 'Overwrite');     Flags.Overwrite = 'nooverwrite'; end;
 if ~isfield(Flags, 'MultiNSP');      Flags.MultiNSP = 'multinsp'; end;
+if ~isfield(Flags, 'selChannels');   Flags.selChannels= 'all'; end;
+
 if strcmpi(Flags.Report, 'report')
     disp(['openNEV ' NEV.MetaTags.openNEVver]);
 end
@@ -352,6 +356,7 @@ if exist(matPath, 'file') == 2 && strcmpi(Flags.NoMAT, 'yesmat') && strcmpi(Flag
     if isempty(NEV.Data.Spikes.Waveform) && strcmpi(Flags.ReadData, 'read') && strcmpi(Flags.WarningStat, 'warning')
         disp('The MAT file does not contain waveforms. Loading NEV instead...');
     else
+        NEV = killUnwantedChannels(NEV, Flags.selChannels);
         if ~nargout
             assignin('base', 'NEV', NEV);
             clear variables;
@@ -876,6 +881,8 @@ if strcmpi(Flags.SaveFile, 'save')
     clear overWrite;
 end
 
+NEV = killUnwantedChannels(NEV, Flags.selChannels);
+
 if ~nargout
     assignin('base', 'NEV', NEV);
 else
@@ -884,3 +891,24 @@ end
 
 fclose(FID);
 clear Flags Trackers FID matPath;
+
+function NEV = killUnwantedChannels(NEV, selectedChannels)
+
+if ~strcmpi(selectedChannels, 'all')
+    if any(selectedChannels < 1)
+        disp('Invalid channel. Channels cannot be 0 or negative values. Channel selection ignored.');
+    else
+        uniqueChannels = unique(NEV.Data.Spikes.Electrode);
+        if ~isempty(setdiff(selectedChannels, uniqueChannels))
+            disp('Some of the selected channels in c:xxx command are not in the data file. These will not be loaded.')
+        end
+        unWantedChannels = setdiff(uniqueChannels, selectedChannels);
+        for idx = 1:length(unWantedChannels)
+            NEV.Data.Spikes.Waveform(:, NEV.Data.Spikes.Electrode == unWantedChannels(idx)) = [];
+            NEV.Data.Spikes.Unit(NEV.Data.Spikes.Electrode == unWantedChannels(idx)) = [];
+            NEV.Data.Spikes.TimeStamp(NEV.Data.Spikes.Electrode == unWantedChannels(idx)) = [];
+            NEV.Data.Spikes.Electrode(NEV.Data.Spikes.Electrode == unWantedChannels(idx)) = [];
+        end
+    end
+end
+

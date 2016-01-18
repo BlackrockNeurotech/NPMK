@@ -1,10 +1,54 @@
-function CCF = ParseCCF()
+function CCF = parseCCF(varargin)
 
-[fileName pathName] = getFile('*.ccf', 'Choose a CCF file...');
-OBJ = xmlread(fullfile(pathName,fileName))
+% parseCCF
+%
+% Parses an XML CCF file.
+%
+%   Nick Halper
+%   support@blackrockmicro.com
+%   Blackrock Microsystems
+%   Version 1.1.0.0
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Version History
+%
+% 1.0.0.0:
+%   - Initial release.
+%
+% 1.1.0.0: January 18, 2016 - Kian Torab
+%   - Minor bug fix with file loading.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+if nargin ~= 0
+    fullfilename = varargin{1};
+else
+    fullfilename = [];
+end
+
+if ~exist(fullfilename, 'file')
+    [fileName pathName] = getFile('*.ccf', 'Choose a CCF file...');
+    fullfilename = [pathName fileName];
+else
+    [pathName, fileName, ext] = fileparts(fullfilename);
+    pathName = [pathName];
+    fileName = [fileName, ext];
+end
+
+prevDecodedXMLCCF = [fullfilename(1:end-3) 'xmld'];
+
+if exist(prevDecodedXMLCCF, 'file') == 2
+    load(prevDecodedXMLCCF, '-mat');
+    return;
+end
+
+disp('The CCF loading can take up to half an hour the first time. Please be patient.');
+
+OBJ = xmlread(fullfile(pathName,fileName));
 removeIndentNodes(OBJ.getChildNodes);
 CCF = parseChildNodes(OBJ);
 
+save(prevDecodedXMLCCF, 'CCF');
 
 %function children = parseChildNodes(OBJ)
 function children = parseChildNodes(theNode)

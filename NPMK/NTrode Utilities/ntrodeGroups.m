@@ -10,19 +10,33 @@ function output = ntrodeGroups(ccf)
 %              DEFAULT: Will open Open File UI.
 %    
 %   Kian Torab
-%   ktorab@blackrockmicro.com
+%   support@blackrockmicro.com
 %   Blackrock Microsystems
-%   Version 1.1.0.0
+%   Version 1.1.1.0
 %
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   Kian Torab
+%   support@blackrockmicro.com
+%   Blackrock Microsystems
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Version History
+%
+% 1.0.0.0: October, 2014
+%   - Initial release.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 if ~exist('ccf', 'var')
-    ccf = openCCF;
+    [ccf version] = openCCF;
 end
 
-for idx = 1:length(ccf.NTrodeInfo.NTrodeID)
-    fprintf('NTrode group %d members: %s\n', idx, int2str(ccf.NTrodeInfo.NTrodeMembers{idx}));
+if ~strcmpi(version, '3.9') || strcmpi(version, '3.8') || strcmpi(version, '3.7')
+    disp('Not implemented yet.');
+else
+    for idx = 1:length(ccf.NTrodeInfo.NTrodeID)
+        fprintf('NTrode group %d members: %s\n', idx, int2str(ccf.NTrodeInfo.NTrodeMembers{idx}));
+    end
 end
 
 output = ccf.NTrodeInfo.NTrodeMembers;

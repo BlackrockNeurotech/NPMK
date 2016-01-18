@@ -1,74 +1,118 @@
-function saveNEV(NEV,varargin)
+function saveNEV(NEV, varargin)
 
 %% 
 % Save an .NEV file from an NEV structure (gained by using openNEV)
 % Works with file spec 2.3
+% 
+% Use saveNEV(NEV, filename, noreport)
+
+% All input arguments are optional. Input arguments can be in any order.
+%
+%   NEV:        Name of the NEV structure to be saved.
+%               DEFAULT: The workspace NEV structure in the workspace will
+%               be saved.
+%
+%   filename:   Name of the new NEV file name.
+%               DEFAULT: -out.nev will be added to the end of the current
+%               file name.
+%
+%   'noreport': Will not display status reports or warnings.
+%               DEFAULT: will display status reports and warnings.
+%
+%
+%   OUTPUT:     None
+%
+%   Example 1: 
+%   saveNEV
+%
+%   In the example above, a new file containing the NEV structure in the
+%   workspace will be saved. The file name will have -out.NEV added to its
+%   name. Statuses of the progress of saveNEV and also warnings about the
+%   risks of saving will be displayed.
+%
+%   Example 2:
+%   openNSx(NEV, 'myNewNEVFile.nev', 'noreport');
+%
+%   In the example above, a new file containing the NEV structure in the
+%   workspace will be saved. The file name will be myNewNEVFile.nev. 
+%   Statuses of the progress of saveNEV and also warnings about the
+%   risks of saving will be not be displayed.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Use: saveNEV(NEV,optionalinputarguments)
-%   NEV:        The NEV data structure.
-%   All arguments below are optional:
-%   Filename:   A complete filepath for the output file.
-%               Default: CurrentFilename-out.nev
+%   Nick Halper
+%   support@blackrockmicro.com
+%   Blackrock Microsystems
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%saveNEV version = '1.0.0.0';
+% Version History
+%
+% 1.0.0.0: Nick Halper
+%   - Initial release.
+%
+% 1.1.0.0: Kian Torab
+%   - Added the ability to suppress the fiel saving warning with
+%     'noreport' input parameter.
+%   - Re-structured help to better match the suite's style. Added examples.
+%   - Added the 'noreport' key to supress statuses and warnings.
+%   - Improved error checking for input arguments.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% 
 % Verify FilePath and establish overwrite paramaters
 if not(NEV.MetaTags.FileSpec == '2.3')
     disp(strcat('This function only functions on file spec 2.3,;this is your file spec:',NEV.MetaTags.FileSpec));
     return
 end
 
-if not(isempty(varargin))
-    FilePath = varargin;
-else
-    FilePath = [fullfile(NEV.MetaTags.FilePath,NEV.MetaTags.Filename) '-out.nev'];
-    OldPath = cd(NEV.MetaTags.FilePath);
-    [File,Path] = uiputfile;
-    FilePath = [fullfile(Path,NEV.MetaTags.Filename) '-out.nev'];
-end
-
-
-Accept = input('This script will save a new file with the .NEV extensions, but you should retain the previous file. Do you acknowledge the risk inherent in saving modified versions of data files? (Y/N)','s');
-if strcmpi(Accept,'y')
-else
-    disp('Ending Script...');
-    return
-end
-%%
-% Write the basic header into the file
-%FullFile
-
-CheckAgain = 1;
-while CheckAgain >= 1
-
-if exist(FilePath)
-        if exist(FilePath)
-            disp('File already exists!');
-            disp('Changing output filename!');
-            cd(Path)
-            %%[File,Path] = uiputfile;
-            FilePath = strcat(fullfile(Path,NEV.MetaTags.Filename),'-out',num2str(CheckAgain),'.nev');
-            disp(strcat('New filepath is:',FilePath));
-            CheckAgain = CheckAgain + 1;
+if nargin > 1
+    for idx = 1:nargin-1
+        if strcmpi(varargin{idx}, 'noreport')
+            reportFlag = 0;
+        elseif length(varargin{idx})>3 && ...
+                (strcmpi(varargin{idx}(3),'\') || ...
+                 strcmpi(varargin{idx}(1),'/') || ...
+                 strcmpi(varargin{idx}(2),'/') || ...
+                 strcmpi(varargin{idx}(1:2), '\\')) 
+            FilePath = varargin{1};
         end
-else
-    CheckAgain = 0;
-end
+    end
 end
 
-clear Overwrite
-clear OverwritePrompt
-clear varargin
+% Validating input arguments
+if ~exist('FilePath',   'var'); FilePath = [fullfile(Path,NEV.MetaTags.Filename) '-out.nev']; end
+if ~exist('reportFlag', 'var'); reportFlag = 1; end;
+
+% Warning user about the consequences of the modified NEV file
+if reportFlag
+    Accept = input('This script will save a new file with the .NEV extensions, but you should retain the previous file. Do you acknowledge the risk inherent in saving modified versions of data files? (Y/N)','s');
+    if ~strcmpi(Accept,'y')
+        disp('Ending Script...');
+        return
+    end
+end
+
+% Validating and opening the writable file
+if exist('FilePath', 'file')
+	FileExistResponse = input('The file already exists. Overwrite? (Y/N)','s');
+    if ~strcmpi(FileExistResponse, 'y')
+        return;
+    end
+end
 
 FileID = fopen(FilePath, 'w', 'ieee-le');
     
 if (FileID <= 0)
-    disp('Error with file creation. It is possible that the destination selection was cancelled.');
+    disp('No file was selected.');
     return;
 end
 
-disp('Writing Basic Header...');
+%% Write the basic header into the file
+
+% General warining about the length of time it takes to save a NEV file so
+% the user does not abort the process
+disp(['Saving NEV file ' FilePath '. This can take a long time. Please be patient.']);
+
+if reportFlag; disp('Writing Basic Header...'); end
 
 fwrite(FileID,NEV.MetaTags.FileTypeID(1:8));
 fwrite(FileID, [str2double(NEV.MetaTags.FileSpec(1)) str2double(NEV.MetaTags.FileSpec(3))], 'uint8');
@@ -90,7 +134,7 @@ fwrite(FileID,ExtendedHeaderBytes/32,'uint32');
 
 %Handling packets with array information
 if isfield(NEV,'ArrayInfo')
-    disp('Writing Array Header...');
+    if reportFlag; disp('Writing Array Header...'); end
     if isfield(NEV.ArrayInfo,'ElectrodeName')
         fwrite(FileID,'ARRAYNME');
         fwrite(FileID,NEV.ArrayInfo.ElectrodeName); %Must null terminate
@@ -110,7 +154,7 @@ if isfield(NEV,'ArrayInfo')
 end
 
 if isfield(NEV,'ElectrodesInfo')
-    disp('Writing Electrode Header...');
+    if reportFlag; disp('Writing Electrode Header...'); end
     if (isfield(NEV.ElectrodesInfo(1),'ElectrodeID'))
         
     %Find length of electrode count, loop through for that count and fill
@@ -170,14 +214,14 @@ if isfield(NEV,'ElectrodesInfo')
         fwrite(FileID, zeros(2,1), 'uint8');
         After = ftell(FileID);
         if After-Before ~= 32
-            disp('Broken')
+            disp('Broken');
         end
         end
     end   
 end
 %Digital inputs
 if isfield(NEV,'IOLabels')
-    disp('Writing IOLabels Header...');
+    if reportFlag; disp('Writing IOLabels Header...'); end
     for IDX = [1,2]
     Before = ftell(FileID);
     fwrite(FileID,'DIGLABEL');
@@ -186,14 +230,14 @@ if isfield(NEV,'IOLabels')
     fwrite(FileID, zeros(7,1),'uint8');
     After = ftell(FileID);
     if After-Before ~= 32
-       disp('Broken')
+       disp('Broken');
     end
     end
 end
     
 %Video Packets
 if isfield(NEV,'VideoSyncInfo')
-    disp('Writing Video Header...');
+    if reportFlag; disp('Writing Video Header...'); end
     for IDX = 1:length(NEV.VideoSyncInfo)
     Before = ftell(FileID);
     fwrite(FileID,'VIDEOSYN');
@@ -203,7 +247,7 @@ if isfield(NEV,'VideoSyncInfo')
     fwrite(FileID, zeros(2,1),'uint8');
     After = ftell(FileID);
     if After-Before ~= 32
-       disp('Broken')
+       disp('Broken');
        PacketNumber = IDX
        TotalPackets = length(NEV.VideoSyncInfo)
     end
@@ -215,7 +259,7 @@ if isfield(NEV,'NSAS')
 end
 
 if isfield(NEV,'ObjTrackInfo')
-    disp('Writing Tracking Header...');
+    if reportFlag; disp('Writing Tracking Header...'); end
     for IDX = 1:length(NEV.ObjTrackInfo)
     Before = ftell(FileID);
     fwrite(FileID,'TRACKOBJ');
@@ -229,7 +273,7 @@ if isfield(NEV,'ObjTrackInfo')
     fwrite(FileID, zeros(2,1),'uint8');
     After = ftell(FileID);
     if After-Before ~= 32
-       disp('Broken')
+       disp('Broken');
     end
     end
 end
@@ -247,7 +291,7 @@ Broken = 0;
 
 %SerialDigitalIO CHECK
 if ~isempty(NEV.Data.SerialDigitalIO.TimeStamp)
-    disp('Writing Serial/Digital Data...');
+    if reportFlag; disp('Writing Serial/Digital Data...'); end
     for IDX = 1:length(NEV.Data.SerialDigitalIO.TimeStamp)
         Before = ftell(FileID);
         fwrite(FileID, NEV.Data.SerialDigitalIO.TimeStamp(IDX),'uint32');
@@ -275,14 +319,14 @@ if ~isempty(NEV.Data.SerialDigitalIO.TimeStamp)
         end
     end
     if Broken == 1
-        disp('Serial Digital Packet Corrupted')
+        disp('Serial Digital Packet Corrupted');
         Broken = 0;
     end
 end
 
 %Spikes CHECK
 if ~isempty(NEV.Data.Spikes.TimeStamp)
-    disp('Writing Spike Data...');
+    if reportFlag; disp('Writing Spike Data...'); end
     for IDX = 1:length(NEV.Data.Spikes.TimeStamp)
         Before = ftell(FileID);
         fwrite(FileID, NEV.Data.Spikes.TimeStamp(IDX),'uint32');
@@ -314,7 +358,7 @@ end
 %disp('done')
 %Comments CHECK
 if ~isempty(NEV.Data.Comments.TimeStamp)
-    disp('Writing Comment Data...');
+    if reportFlag; disp('Writing Comment Data...'); end
     for IDX = 1:length(NEV.Data.Comments.TimeStamp)
         Before = ftell(FileID);
         fwrite(FileID, NEV.Data.Comments.TimeStamp(IDX),'uint32');
@@ -346,7 +390,7 @@ if ~isempty(NEV.Data.Comments.TimeStamp)
 end
 
 if ~isempty(NEV.Data.VideoSync.TimeStamp)
-    disp('Writing VideoSync Data...');
+    if reportFlag; disp('Writing VideoSync Data...'); end
     for IDX = 1:length(NEV.Data.VideoSync.TimeStamp)
         Before = ftell(FileID);
         fwrite(FileID, NEV.Data.VideoSync.TimeStamp(IDX),'uint32');
@@ -379,7 +423,7 @@ if ~isempty(NEV.Data.VideoSync.TimeStamp)
 end
 
 if ~isempty(NEV.Data.Tracking)
-    disp('Writing Tracking Data...');
+    if reportFlag; disp('Writing Tracking Data...'); end
     TrackingFieldNames = fieldnames(NEV.Data.Tracking);
         for TrackingField = 1:numel(TrackingFieldNames)
             for IDX = 1:length(NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).TimeStamp)
@@ -415,7 +459,7 @@ if ~isempty(NEV.Data.Tracking)
 end
 
 if ~isempty(NEV.Data.PatientTrigger.TimeStamp)
-    disp('Writing Patient Trigger Data...');
+    if reportFlag; disp('Writing Patient Trigger Data...'); end
     for IDX = 1:length(NEV.Data.PatientTrigger.TimeStamp)
         Before = ftell(FileID);
         fwrite(FileID, NEV.Data.PatientTrigger.TimeStamp(IDX),'uint32');
@@ -442,7 +486,7 @@ if ~isempty(NEV.Data.PatientTrigger.TimeStamp)
 end
 
 if ~isempty(NEV.Data.Reconfig.TimeStamp)
-    disp('Writing Reconfig Data...');
+    if reportFlag; disp('Writing Reconfig Data...'); end
     for IDX = 1:length(NEV.Data.Reconfig.TimeStamp)
         Before = ftell(FileID);
         fwrite(FileID, NEV.Data.Reconfig.TimeStamp(IDX),'uint32');
@@ -467,7 +511,7 @@ if ~isempty(NEV.Data.Reconfig.TimeStamp)
     end
 end
 
-disp('Finished!')
+if reportFlag; disp('Finished!'); end
 
 clear After
 clear Before
@@ -478,9 +522,5 @@ clear FilePath
 clear IDX
 clear SpikeLength
 clear Value
-
-cd(OldPath);
-
-clear OldPath
 
 fclose('all');

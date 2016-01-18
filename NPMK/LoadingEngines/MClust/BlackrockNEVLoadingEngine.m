@@ -7,21 +7,32 @@ function [timeStamps, waveForms] = BlackrockNEVLoadingEngine(fn, recordToGet, re
 % support@blackrockmicro.com
 % Blackrock Microsystems
 % 
-% Version 1.3.0.0
+% Version 1.4.0.0
 
+if strcmpi(fn, 'get')
+    if strcmpi(recordToGet, 'ExpectedExtension')
+        timeStamps = '.nev';
+    elseif strcmpi(recordToGet, 'ChannelValidity')
+        timeStamps = [1, 1, 1, 1];
+    elseif strcmpi(recordToGet, 'UseFileDialog')
+        timeStamps = true;
+    end
+    return;
+end
 
 if ~exist(fn, 'file')
-    disp('File does not exist.');
-    timeStamps = 0;
-    waveForms = 0;
-    return;
+%     disp('File does not exist.');
+%     timeStamps = 0;
+%     waveForms = 0;
+%     return;
 end
 
 %% Reading the entire data if recordUnits is not defined
 if ~exist('recordUnits', 'var')
     NEV = loadNEV(fn, 'read');
+    channelsInFile = unique(NEV.Data.Spikes.Electrode);
     %Saving all timestamps from the file into the timeStamp output variable
-    timeStamps = NEV.Data.Spikes.TimeStamp(:, NEV.Data.Spikes.Electrode == 1);
+    timeStamps = NEV.Data.Spikes.TimeStamp(:, NEV.Data.Spikes.Electrode == channelsInFile(1));
     timeStamps = timeStampsToTimestampSeconds(timeStamps,NEV.MetaTags.SampleRes);
     %Saving all saveforms from the file into the waveForm output variable
     waveForms = initializeWaveform(length(timeStamps));
