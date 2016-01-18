@@ -161,8 +161,25 @@ function varargout = openNEV(varargin)
 %   - Fixed a bug where Application name wasn't being read properly.
 %   - Warnings now don't show up in more places when "nowarning" is used.
 %   - Added field FileExt to MetaTags.
-%   - Added 512 synchronized reading capability
-%   - Fixed the date in NSx.MetaTags.DateTime
+%   - Added 512 synchronized reading capability.
+%   - Fixed the date in NSx.MetaTags.DateTime.
+%
+% 5.1.0.0: 28 March 2015
+%   - Added the ability to read from networked drives in Windows.
+%   - Fixed the DateTime variable in MetaTags.
+%   - Fixed the date in NSx.MetaTags.DateTime (again).
+%   - Fixed a bug related to >512-ch data loading.
+%
+% 5.1.1.0: 1 April 2015
+%   - Fixed a bug with NeuroMotive when spike window is changed from the
+%     original length.
+%
+% 5.1.2.0: June 30 2015
+%   - Fixed a bug regarding the number of packages when 'no read' is used.
+%
+% 5.1.3.0: July 10 2015
+%   - Fixed a bug with NeuroMotive data reading when both objects and
+%     markers were being recorded.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -224,7 +241,8 @@ for i=1:length(varargin)
             if length(temp)>3 && ...
                     (strcmpi(temp(3),'\') || ...
                      strcmpi(temp(1),'/') || ...
-                     strcmpi(temp(2),'/'))                
+                     strcmpi(temp(2),'/') || ...
+                     strcmpi(temp(1:2), '\\'))                
                 fileFullPath = varargin{i};
                 if exist(fileFullPath, 'file') ~= 2
                     disp('The file does not exist.');
@@ -302,12 +320,13 @@ end
 
 syncShift = 0;
 
-
 % Check to see if 512 setup and calculate offset
 if strcmpi(Flags.MultiNSP, 'multinsp')
-    fiveTwelveFlag = regexp(fileName, '-i[0123]-');
+    fiveTwelveFlag = regexp(fileFullPath, '-i[0123]-');
     if ~isempty(fiveTwelveFlag)
         syncShift = multiNSPSync(fileFullPath);
+    else
+        Flags.MultiNSP = 'no';
     end
 end
 
@@ -384,9 +403,7 @@ clear fileFullPath;
 
 %% Parsing and validating FileSpec and DateTime variables
 NEV.MetaTags.DateTimeRaw = t.';
-NEV.MetaTags.DateTime = [num2str(t(2)) '/'  num2str(t(3)) '/' num2str(t(1))...
-	' ' datestr(t(4)+2, 'dddd') ' ' num2str(t(5)) ':'  ...
-	num2str(t(6)) ':'  num2str(t(7)) '.' num2str(t(8))];
+NEV.MetaTags.DateTime = datestr(datenum(t(1), t(2), t(4), t(5), t(6), t(7)));
 clear t;
 
 %% Removing extra garbage characters from the Comment field.
@@ -620,6 +637,8 @@ if strcmpi(Flags.ReadData, 'read')
             NEV.Data.Comments.Color = tRawData(9:12, commentIndices);
             NEV.Data.Comments.Color = typecast(NEV.Data.Comments.Color(:), 'uint32').';
             NEV.Data.Comments.Text  = char(tRawData(13:Trackers.countPacketBytes, commentIndices).');
+     
+            %NEV.MetaTags.Comment(find(NEV.MetaTags.Comment==0,1):end) = 0;
             
             % Transferring NeuroMotive Events to its own structure
             neuroMotiveEvents = find(NEV.Data.Comments.CharSet == 255);
@@ -660,14 +679,22 @@ if strcmpi(Flags.ReadData, 'read')
             tmp.MarkerCount   = tRawData(13:14, trackingPacketIDIndices);
             tmp.MarkerCount   = typecast(tmp.MarkerCount(:), 'uint16').';
             
-            tmp.rigidBodyPoints = tRawData(15:102, trackingPacketIDIndices);
-            tmp.rigidBodyPoints = reshape(typecast(tmp.rigidBodyPoints(:), 'uint16'), 44, length(tmp.ParentID));
+            tmp.rigidBodyPoints = tRawData(15:NEV.MetaTags.PacketBytes, trackingPacketIDIndices);
+            tmp.rigidBodyPoints = reshape(typecast(tmp.rigidBodyPoints(:), 'uint16'), size(tmp.rigidBodyPoints, 1)/2, size(tmp.rigidBodyPoints, 2));
             
-            objectIndex = [0 '1' '2' '3' '4' '1' '2' '3' '4'];
             if (isfield(NEV, 'ObjTrackInfo'))
                 for IDX = 1:size(NEV.ObjTrackInfo,2)
                     emptyChar = find(NEV.ObjTrackInfo(IDX).TrackableName == 0, 1);
-                    NEV.ObjTrackInfo(IDX).TrackableName(emptyChar) = objectIndex(IDX);
+                    if isnan(str2double(NEV.ObjTrackInfo(IDX).TrackableName(emptyChar-1)))
+                        if ~strcmpi(NEV.ObjTrackInfo(IDX-1).TrackableName(1:3), NEV.ObjTrackInfo(IDX).TrackableName(1:3))
+                            objectIndex = 1;
+                        else
+                            objectIndex = objectIndex + 1;
+                        end
+                        NEV.ObjTrackInfo(IDX).TrackableName(emptyChar) = num2str(objectIndex);
+                    else
+                        NEV.ObjTrackInfo(IDX).TrackableName(emptyChar) = [];
+                    end
                     indicesOfEvent = find(tmp.NodeID == IDX-1);
                     if ~isempty(indicesOfEvent)
                         NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStamp = tmp.TimeStamp(indicesOfEvent);

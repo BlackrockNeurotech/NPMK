@@ -484,16 +484,3 @@ cd(OldPath);
 clear OldPath
 
 fclose('all');
-
-
-        
-
-
-            
-        
-        
-        
-       
-       
-
-        

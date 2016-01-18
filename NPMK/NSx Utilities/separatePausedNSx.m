@@ -23,6 +23,12 @@ function separatePausedNSx(varargin)
 % 1.1.0.0:
 %   - Fixed a broken function that dependent on a non-existant saveNEV
 %   script.
+%
+% 1.2.0.0:
+%   - Corrected  NSx_out.MetaTags.Filename     =
+%   [NSx.MetaTags.Filename(1:end) '-p' sprintf('%03d', i)
+%   NSx.MetaTags.FileExt] which was incorrectly removing the last 4
+%   characters of the filename in an attempt to remove the extension.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Since openNSx checks input parameters for file validity and for no input
@@ -51,7 +57,7 @@ else
         NSx_out.RawData.DataHeader    = NSx.RawData.DataHeader(1+(9*(i-1)):9+(9*(i-1)));
         
         % Create enumerated file name
-        NSx_out.MetaTags.Filename     = [NSx.MetaTags.Filename(1:end-4) '-p' sprintf('%03d', i) NSx.MetaTags.FileExt];
+        NSx_out.MetaTags.Filename     = [NSx.MetaTags.Filename(1:end) '-p' sprintf('%03d', i) NSx.MetaTags.FileExt];
         disp('Opening the original file...');
 
 

@@ -22,6 +22,9 @@ function NSx = openNSxSync(varargin)
 % 1.1.0.0: June 13, 2014
 %   - Added the ability to open a file by passing on the file name.
 %
+% 1.1.1.0: December 3, 2014
+%   - Fixed a minor bug.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Initializing varilables.
@@ -42,7 +45,7 @@ end
 
 %% Openning Synced files and removing the extra piece of data
 if exist('filename', 'var')
-    if exist('filename', 'file') == 2
+    if exist(filename, 'file') == 2
         NSx = openNSx(filename);
     else
         disp('File was not found.');
