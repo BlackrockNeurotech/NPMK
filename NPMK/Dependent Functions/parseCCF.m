@@ -18,6 +18,9 @@ function CCF = parseCCF(varargin)
 % 1.1.0.0: January 18, 2016 - Kian Torab
 %   - Minor bug fix with file loading.
 %
+% 1.1.1.0: January 19, 2016 - Kian Torab
+%   - Added a progress bar.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 if nargin ~= 0
@@ -53,7 +56,7 @@ save(prevDecodedXMLCCF, 'CCF');
 %function children = parseChildNodes(OBJ)
 function children = parseChildNodes(theNode)
 % Recurse over node children.
-children = [];
+children = 0;
 if theNode.hasChildNodes
    childNodes = theNode.getChildNodes;
    numChildNodes = childNodes.getLength;
@@ -66,6 +69,10 @@ if theNode.hasChildNodes
     for count = 1:numChildNodes
         theChild = childNodes.item(count-1);
         children(count) = makeStructFromNode(theChild);
+        counter = counter + 1;
+        if mod(counter,20) == 0
+            fprintf('.');
+        end
     end
 end
 
@@ -111,17 +118,22 @@ function removeIndentNodes( childNodes )
 
 numNodes = childNodes.getLength;
 remList = [];
+counter = 0;
 for i = numNodes:-1:1
-   theChild = childNodes.item(i-1);
-   if (theChild.hasChildNodes)
-      removeIndentNodes(theChild.getChildNodes);
-   else
-      if ( theChild.getNodeType == theChild.TEXT_NODE && ...
-           ~isempty(char(theChild.getData()))         && ...
+    counter = counter + 1;
+    if rem(counter,20) == 0
+        fprintf('.');
+    end
+	theChild = childNodes.item(i-1);
+	if (theChild.hasChildNodes)
+        removeIndentNodes(theChild.getChildNodes);
+    else
+        if ( theChild.getNodeType == theChild.TEXT_NODE && ...
+           ~isempty(char(theChiﬂld.getData()))         && ...
            all(isspace(char(theChild.getData()))))
          remList(end+1) = i-1; % java indexing
-      end
-   end
+        end
+    end
 end
 for i = 1:length(remList)
    childNodes.removeChild(childNodes.item(remList(i)));
