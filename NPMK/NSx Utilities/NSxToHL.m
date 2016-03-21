@@ -44,6 +44,8 @@ function NSxToHL(fname)
 % 1.0.0.0:
 %   - Initial release.
 %
+% 1.1.0.0:
+%   - Added support for paused files.%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Opening the file
 % Popup the Open File UI. Also, process the file name, path, and extension
@@ -76,13 +78,15 @@ end
 %% Reading the headerless file
 data = openNSxHL([path fname]);
 
-%% Writing to file
-% Determining the filename for the converted file
-newFilename = [path fname '.dat'];
+if not(data(1) == -1 && length(data) == 1)
+    %% Writing to file
+    % Determining the filename for the converted file
+    newFilename = [path fname '.dat'];
 
-% Opening the output file for saving
-FIDw = fopen(newFilename, 'w+', 'ieee-le');
+    % Opening the output file for saving
+    FIDw = fopen(newFilename, 'w+', 'ieee-le');
 
-% Writing data into file
-disp('Writing the converted data into the new .dat file...');
-fwrite(FIDw, data, 'int16');
+    % Writing data into file
+    disp('Writing the converted data into the new .dat file...');
+    fwrite(FIDw, data, 'int16');
+end

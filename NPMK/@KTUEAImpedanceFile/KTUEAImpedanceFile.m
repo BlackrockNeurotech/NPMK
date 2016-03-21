@@ -15,10 +15,22 @@ classdef KTUEAImpedanceFile
 %
 %   To see a list of methods type methods(plotImpedances).
 %
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   Kian Torab
-%   ktorab@blackrockmicro.com
+%   kian@blackrockmicro.com
 %   Blackrock Microsystems
-%   Version 1.1.0
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Version History
+%
+% 1.0.0.0:
+%   - Initial release.
+%
+% 1.1.0.0: March 19, 2016
+%   - Fixed a bug with extra spaces after kohm resulted in a crash.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 %   Ideas borrowed from Sergey Stavisky, The BrainGate Project
 
@@ -50,8 +62,8 @@ classdef KTUEAImpedanceFile
             impedanceDataCellParsed = regexp(impedanceDataCell, '\t', 'split');
             for i = 1:size(impedanceDataCellParsed, 1)
                 impedanceSingleCell = impedanceDataCellParsed{i,:}(2);
-                impedanceSingleText = impedanceSingleCell{:};
-                obj.impedanceDataValues(i) = str2double(impedanceSingleText(1:end-4));
+                impedanceSingleText = strtrim(impedanceSingleCell{:});
+                obj.impedanceDataValues(i) = str2double(impedanceSingleText);
             end
         end
     end

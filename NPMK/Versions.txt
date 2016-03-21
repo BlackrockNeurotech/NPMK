@@ -267,4 +267,22 @@ NPMK Version 2.8.2.0: 5 May 2014
 %
 
 
+***** NPMK Version 4.1.0.0: March 19, 2016 *****
 
+% splitNEV 1.1.0.0: February 25, 2016
+%   - Added support for paused files {} into separate non-paused NSx files.
+%
+% openNSxHL 1.1.0.0: February 25, 2016
+%   - Added support for paused files.
+%
+% NSxToHL 1.1.0.0: February 25, 2016
+%   - Added support for paused files.
+%
+% matrixToNSx 1.0.0.0: March 19, 2016
+%   - Initial release.
+%
+% KTUEAMapFile 1.7.0.0: March 19, 2016
+%   - Fixed a bug where a CMP file with extra lines would crash the script.
+%
+% 1.1.0.0: March 19, 2016
+%   - Fixed a bug with extra spaces after kohm resulted in a crash.

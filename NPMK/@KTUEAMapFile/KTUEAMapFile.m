@@ -60,6 +60,9 @@ classdef KTUEAMapFile
 % 1.6.1.0:
 %   - Minor bug fix.
 %
+% 1.7.0.0: March 19, 2016
+%   - Fixed a bug where a CMP file with extra lines would crash the script.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%
@@ -108,7 +111,7 @@ classdef KTUEAMapFile
             end            
             mapfileDataCellParsed(1:lastJunkIDX) = [];
             for i = 1:size(mapfileDataCellParsed, 1)
-                if ~all(isspace(mapfileDataCellParsed{i}))
+                if ~all(isspace(mapfileDataCellParsed{i})) && ~(size(mapfileDataCellParsed{i},2) < 3)
                     obj.Column(i) = str2num(mapfileDataCellParsed{i,:}{1});
                     obj.Row(i)    = str2num(mapfileDataCellParsed{i,:}{2});
                     obj.Bank(i)   = mapfileDataCellParsed{i,:}{3}-'@';
