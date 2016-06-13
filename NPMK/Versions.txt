@@ -301,7 +301,10 @@ NPMK Version 2.8.2.0: 5 May 2014
 %   - Added support for CerePlex Direct strobe mode on digital input.
 %   - Fixed a bug with reading NeuroMotive data that resulted in a crash.
 
-***** NPMK Version 4.2.1.0: June 13, 2016 *****
+***** NPMK Version 4.3.0.0: June 13, 2016 *****
 
-% openNEV June 13 2016
+% openNEV 5.3.0.0: June 13 2016
 %   - Fixed a bug with reading NeuroMotive data that resulted in a crash.
+%   - Improved and more detailed parsing of NeuroMotive events.
+%   - Added parsing of comment start time and comment commit time (time
+%     that a comment is entered.
