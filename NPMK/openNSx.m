@@ -101,7 +101,7 @@ function varargout = openNSx(varargin)
 %                 then every other sample is read. If skipfactor is 5 then
 %                 every fifth sample is read. This is useful to briefly
 %                 looking at the data in a large datafile when reading the
-%                 entire dataset would overflow memory.
+%                 entire dataset would overflow the memory.
 %                 DEFAULT: is set to 1, so every sample will be read.
 %
 %   'ver':        If this argument is passed to the function it will return
@@ -132,7 +132,7 @@ function varargout = openNSx(varargin)
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   Kian Torab
-%   kian@blackrockmicro.com
+%   support@blackrockmicro.com
 %   Blackrock Microsystems
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -184,7 +184,7 @@ function varargout = openNSx(varargin)
 %     dialogue.
 %   - Fixed the date in NSx.MetaTags.DateTime.
 %
-% 6.1.0.0: 28 March 2015
+% 6.1.0.0: March, 15 2015
 %   - Added the ability to read from networked drives in Windows.
 %   - Fixed the DateTime variable in MetaTags.
 %   - Fixed the date in NSx.MetaTags.DateTime (again).
@@ -193,15 +193,19 @@ function varargout = openNSx(varargin)
 %   - Fixed a bug where 512+ ch rules were being applied to smaller channel
 %     count configuration.
 %
-% 6.1.1.0: 15 June 2015
+% 6.1.1.0: June 15, 2015
 %   - Bug fixes related to timestamps when the recording didn't start at
 %     proctime 0.
 %
-% 6.2.0.0: 1 October 2015
+% 6.2.0.0: October 1, 2015
 %   - Fixed a bug related to reading the correct length of time when a skip
 %     factor was used.
 %   - Bug fixes related to information that separatePausedNSx depends on.
 %   - Added 'uV' as an option to read the data in the unit of uV.
+%
+% 6.2.1.0: April 16, 2016
+%   - Fixed a bug related to converting the unit to uV in case of having
+%     multiple data segments (paused file).
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -718,6 +722,8 @@ if ~NSx.RawData.PausedFile
     
     % Adjusting the endPacket for the skipFactor to reduce the length of
     % the data read.
+    % DEBUG: This is not needed since the same length of data is to be
+    % read.
     EndPacket = EndPacket / skipFactor; 
         
     DataLength = EndPacket - StartPacket + 1;
@@ -804,9 +810,12 @@ end
 
 %% Adjusting for the data's unit.
 if strcmpi(waveformUnits, 'uV')
-    NSx.Data = NSx.Data / 4;
+    if iscell(NSx.Data) % Contribution by Michele Cox @ Vanderbilt
+    	NSx.Data = cellfun(@(x) x / 4, NSx.Data,'UniformOutput',0);
+    else
+        NSx.Data = NSx.Data / 4;
+    end % End of contribution
 end
-waveformUnits
 
 %% Calculating the DataPoints in seconds and adding it to MetaData
 NSx.MetaTags.DataDurationSec = double(NSx.MetaTags.DataPoints)/NSx.MetaTags.SamplingFreq;
