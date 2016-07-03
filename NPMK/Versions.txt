@@ -308,3 +308,9 @@ NPMK Version 2.8.2.0: 5 May 2014
 %   - Improved and more detailed parsing of NeuroMotive events.
 %   - Added parsing of comment start time and comment commit time (time
 %     that a comment is entered.
+
+***** NPMK Version 4.3.1.0: July 2, 2016 *****
+
+% splitNSx 1.1.0.0: July 2, 2016
+%   - Fixed a bug related to a case where initial timestamp of the first
+%     data segment was not 0. 

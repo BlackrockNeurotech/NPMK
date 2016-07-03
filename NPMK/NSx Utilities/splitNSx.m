@@ -18,10 +18,22 @@ function splitNSx(splitCount)
 %   loaded file will be split in 4 samller files. For example, if the file
 %   is 1 hour long then it will be split into four 15-minute files.
 %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   Kian Torab
-%   ktorab@blackrockmicro.com
+%   support@blackrockmicro.com
 %   Blackrock Microsystems
-%   Version 1.0.3.0
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Version History
+%
+% 1.0.0.0:
+%   - Initial release.
+%
+% 1.1.0.0:
+%   - Fixed a bug related to a case where initial timestamp of the first
+%     data segment was not 0. 
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 
 % Validating input parameter
@@ -67,8 +79,8 @@ elseif strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
     % Calculating different points in the file
     fseek(FID, 0, 'bof');
     basicHeader = fread(FID, 314, '*uint8');
-    fseek(FID, 0, 'eof');
     positionEOE = typecast(basicHeader(11:14), 'uint32');
+    fseek(FID, 0, 'eof');
     positionEOD = ftell(FID);
     % Calculating channelCount, data Length
     channelCount = typecast(basicHeader(311:314), 'uint32');
@@ -92,6 +104,11 @@ elseif strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
         fprintf('Writing segment %d... ', idx);
         % Writing the segmented data into file
         fwrite(FIDw, fileHeader, 'char');
+        % Set the timestamp of the segments 2+ to 0 so there's no
+        % introduced shift by openNSx.
+        if idx > 1
+            dataHeader(2:5) = 0;
+        end
         fwrite(FIDw, dataHeader, 'char');
         fwrite(FIDw, dataSegment, 'char');
         % Clearing variables and closing file
