@@ -314,3 +314,8 @@ NPMK Version 2.8.2.0: 5 May 2014
 % splitNSx 1.1.0.0: July 2, 2016
 %   - Fixed a bug related to a case where initial timestamp of the first
 %     data segment was not 0. 
+
+***** NPMK Version 4.3.2.0: July 6, 2016 *****
+
+% openNSx 6.2.2.0: July 6, 2016
+%   - Fixed another bug related to converting the unit to uV.

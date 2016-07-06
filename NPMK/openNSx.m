@@ -207,6 +207,9 @@ function varargout = openNSx(varargin)
 %   - Fixed a bug related to converting the unit to uV in case of having
 %     multiple data segments (paused file).
 %
+% 6.2.2.0: July 6, 2016
+%   - Fixed another bug related to converting the unit to uV.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -811,9 +814,9 @@ end
 %% Adjusting for the data's unit.
 if strcmpi(waveformUnits, 'uV')
     if iscell(NSx.Data) % Contribution by Michele Cox @ Vanderbilt
-    	NSx.Data = cellfun(@(x) x / 4, NSx.Data,'UniformOutput',0);
+    	NSx.Data = cellfun(@(x) bsxfun(@rdivide, double(x), 1./(double([NSx.ElectrodesInfo.MaxAnalogValue])./double([NSx.ElectrodesInfo.MaxDigiValue]))'),NSx.Data ,'UniformOutput',false);
     else
-        NSx.Data = bsxfun(@rdivide, double(NSx.Data),  (double([NS2.ElectrodesInfo.MaxAnalogValue])./double([NS2.ElectrodesInfo.MaxDigiValue]))');
+        NSx.Data = bsxfun(@rdivide, double(NSx.Data), 1./(double([NSx.ElectrodesInfo.MaxAnalogValue])./double([NSx.ElectrodesInfo.MaxDigiValue]))');
     end % End of contribution
 end
 
