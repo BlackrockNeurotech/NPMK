@@ -813,22 +813,12 @@ end
 
 %% Adjusting for the data's unit.
 if strcmpi(waveformUnits, 'uV')
-<<<<<<< HEAD
-    if iscell(NSx.Data)
-        NSx.Data = cellfun(@(x) x / 4, NSx.Data,'UniformOutput',0);
-    else
-        NSx.Data = NSx.Data / 4;
-    end
-end
-%waveformUnits
-=======
     if iscell(NSx.Data) % Contribution by Michele Cox @ Vanderbilt
     	NSx.Data = cellfun(@(x) bsxfun(@rdivide, double(x), 1./(double([NSx.ElectrodesInfo.MaxAnalogValue])./double([NSx.ElectrodesInfo.MaxDigiValue]))'),NSx.Data ,'UniformOutput',false);
     else
         NSx.Data = bsxfun(@rdivide, double(NSx.Data), 1./(double([NSx.ElectrodesInfo.MaxAnalogValue])./double([NSx.ElectrodesInfo.MaxDigiValue]))');
     end % End of contribution
 end
->>>>>>> upstream/master
 
 %% Calculating the DataPoints in seconds and adding it to MetaData
 NSx.MetaTags.DataDurationSec = double(NSx.MetaTags.DataPoints)/NSx.MetaTags.SamplingFreq;
