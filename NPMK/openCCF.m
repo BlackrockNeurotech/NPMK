@@ -16,26 +16,33 @@ function [infoPackets, version] = openCCF(filename)
 %   Kian Torab
 %   ktorab@blackrockmicro.com
 %   Blackrock Microsystems
-%   Version 1.2.3.0
+%   Version 2.1.0.0
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Version History
 %
 % 1.0.0.0:
 %   - Initial release.
+%
 % 1.2.3.0:
 %   - Minor bug fix that led to a crash in certain cases.
+%
 % 1.2.4.0:
 %   - Minor bug fix regarding passing a filename variable to the function.
 %
+% 2.0.0.0: 
+%   - Implemented XML CCF file format.
+%
+% 2.1.0.0:
+%   - Fixed a bug in loading nTrode groups with a base of 0.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-infoPackets.openCCFVersion = '1.2.3.0';
+infoPackets.openCCFVersion = '2.0.0.0';
 
 %% Parameters
 
 % Which versions of .ccf's are supported
-supportedVersions = {'3.6', '3.7', '3.8'};
+supportedVersions = {'3.6', '3.7', '3.8', '3.9'};
 % Number of cbPKT_CHANINFO packets to read in the file
 nValidPKT_CHANINFO = 160;
 
@@ -67,14 +74,17 @@ end;
 %% Read header incl. version
 head = fread(fid, 16, '*char*1' )';
 
-if ~strcmp(head(1:5), 'cbCCF')
+if strcmp(head(1:5), 'cbCCF')
+    version = deblank(strtrim(head(6:end))); % Strip possible leading space and trailing nulls
+elseif strcmp(head(1:5), '<?xml')
+    version = '3.9';
+else
   warning('Not a well-formed .ccf file');
   fclose(fid);
   return;
 end
 
-% Strip possible leading space and trailing nulls
-version = deblank(strtrim(head(6:end)));
+% Save version info in the structure.
 infoPackets.Version = version;
 
 % Verify to see if the file version is supported
@@ -82,6 +92,21 @@ if ~ismember(version, supportedVersions)
   warning(sprintf('Unsupported file version: %s', version));
   fclose(fid);
   return;
+end
+
+if strcmpi(version, '3.9')
+    infoPackets = parseCCF(fullfilename);
+    for nTrodeIDX = 1:length(infoPackets.Children(7).Children)
+        for trodeIDX = 1:length(infoPackets.Children(7).Children(nTrodeIDX).Children(9).Children)
+            tempTrodes(trodeIDX) =  ...
+            str2double(infoPackets.Children(7).Children(nTrodeIDX).Children(9).Children(trodeIDX).Children.Data) + 1;
+        end
+        if ~all(tempTrodes == 1)
+            infoPackets.NTrodeInfo.NTrodeID(nTrodeIDX) = nTrodeIDX;
+            infoPackets.NTrodeInfo.NTrodeMembers{nTrodeIDX} = tempTrodes;
+        end 
+    end
+    return;
 end
 
 %% Read packets
