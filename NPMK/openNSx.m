@@ -210,6 +210,9 @@ function varargout = openNSx(varargin)
 % 6.2.2.0: July 6, 2016
 %   - Fixed another bug related to converting the unit to uV.
 %
+% 6.3.0.0: August 3, 2016
+%   - Added support for loading a segment of paused files.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -586,11 +589,11 @@ end
 % Determining if the file has a pause in it
 if length(NSx.MetaTags.DataPoints) > 1
     NSx.RawData.PausedFile = 1;
-    if modifiedTime == 1
-        disp('This data file contains pauses.');
-        disp('openNSx cannot read files with pauses using the ''t:XX'' parameter.');
-        fclose(FID); clear variables; if nargout; varargout{1} = -1; end; return;
-    end
+%     if modifiedTime == 1
+%         disp('This data file contains pauses.');
+%         disp('openNSx cannot read files with pauses using the ''t:XX'' parameter.');
+%         fclose(FID); clear variables; if nargout; varargout{1} = -1; end; return;
+%     end
 end
 
 %% Added by NH - Feb 19, 2014
@@ -676,65 +679,81 @@ end
 
 %% Adjusts StartPacket and EndPacket based on what time setting (sec, min,
 %  hour, or packets) the user has indicated in the input argument.
-if ~NSx.RawData.PausedFile
-    if ~exist('EndPacket', 'var')
-        EndPacket = NSx.MetaTags.DataPoints;
-    end
-    switch TimeScale
-        case 'sec'
-            StartPacket = double(StartPacket) * NSx.MetaTags.SamplingFreq + 1;
-            EndPacket = EndPacket * NSx.MetaTags.SamplingFreq;
-        case 'min'
-            StartPacket = StartPacket * NSx.MetaTags.SamplingFreq * 60 + 1;
-            EndPacket = EndPacket * NSx.MetaTags.SamplingFreq * 60;
-        case 'hour'
-            StartPacket = StartPacket * NSx.MetaTags.SamplingFreq * 3600 + 1;
-            EndPacket = EndPacket * NSx.MetaTags.SamplingFreq * 3600;
-    end
-    
-    %% Validate StartPacket and EndPacket to make sure they do not exceed the
-    %  length of packets in the file. If EndPacket is over then the last packet
-    %  will be set for EndPacket. If StartPacket is over then will exist with an
-    %  error message.
-    if StartPacket >= EndPacket
-        disp('The starting packet is greater than the end packet.');
+if ~exist('EndPacket', 'var')
+    EndPacket = sum(NSx.MetaTags.DataPoints);
+end
+switch TimeScale
+    case 'sec'
+        StartPacket = double(StartPacket) * NSx.MetaTags.SamplingFreq + 1;
+        EndPacket = EndPacket * NSx.MetaTags.SamplingFreq;
+    case 'min'
+        StartPacket = StartPacket * NSx.MetaTags.SamplingFreq * 60 + 1;
+        EndPacket = EndPacket * NSx.MetaTags.SamplingFreq * 60;
+    case 'hour'
+        StartPacket = StartPacket * NSx.MetaTags.SamplingFreq * 3600 + 1;
+        EndPacket = EndPacket * NSx.MetaTags.SamplingFreq * 3600;
+end
+
+%% Validate StartPacket and EndPacket to make sure they do not exceed the
+%  length of packets in the file. If EndPacket is over then the last packet
+%  will be set for EndPacket. If StartPacket is over then will exist with an
+%  error message.
+if StartPacket >= EndPacket
+    disp('The starting packet is greater than the end packet.');
+    disp('The file was not read.');
+    fclose(FID);
+    if nargout; varargout{1} = -1; end
+    return;
+end
+if StartPacket <= 0
+    disp('The starting packet must be greater or equal to 1.');
+    disp('The starting packet was changed to 1.');
+    StartPacket = 1;
+end
+if EndPacket > sum(NSx.MetaTags.DataPoints)
+    if StartPacket >= NSx.MetaTags.DataPoints
+        disp('The starting packet is greater than the total data duration.');
         disp('The file was not read.');
         fclose(FID);
         if nargout; varargout{1} = -1; end
         return;
     end
-    if StartPacket <= 0
-        disp('The starting packet must be greater or equal to 1.');
-        disp('The starting packet was changed to 1.');
-        StartPacket = 1;
-    end
-    if EndPacket > NSx.MetaTags.DataPoints
-        if StartPacket >= NSx.MetaTags.DataPoints
-            disp('The starting packet is greater than the total data duration.');
-            disp('The file was not read.');
-            fclose(FID);
-            if nargout; varargout{1} = -1; end
-            return;
-        end
-        disp('The time interval specified is longer than the data duration.');
-        disp('Last data point will be used instead.');
-        disp('Press enter to continue...');
-        pause;
-        EndPacket = NSx.MetaTags.DataPoints - 1;
-    end
-    
-    % Adjusting the endPacket for the skipFactor to reduce the length of
-    % the data read.
-    % DEBUG: This is not needed since the same length of data is to be
-    % read.
-    EndPacket = EndPacket / skipFactor; 
-        
-    DataLength = EndPacket - StartPacket + 1;
+    disp('The time interval specified is longer than the data duration.');
+    disp('Last data point will be used instead.');
+    disp('Press enter to continue...');
+    pause;
+    EndPacket = sum(NSx.MetaTags.DataPoints) - 1;
 end
+
+% Adjusting the endPacket for the skipFactor to reduce the length of
+% the data read.
+% DEBUG: This is not needed since the same length of data is to be
+% read.
+EndPacket = EndPacket / skipFactor; 
+
+DataLength = EndPacket - StartPacket + 1;
+
+% Adjusting the reading timestamps for paused files
+if DataLength < NSx.MetaTags.DataPoints(1)
+    NSx.MetaTags.DataPoints = DataLength;
+    NSx.MetaTags.Timestamp(2:end) = [];
+    segmentCount = 1;
+    NSx.RawData.PausedFile = 0;
+end
+for idx = 2:length(NSx.MetaTags.DataPoints)
+	if sum(NSx.MetaTags.DataPoints(1:idx)) > DataLength
+        NSx.MetaTags.DataPoints(idx) = DataLength - sum(NSx.MetaTags.DataPoints(1:idx-1));
+        NSx.MetaTags.DataPoints(idx+1:end) = [];
+        NSx.MetaTags.Timestamp(idx+1:end) = [];
+        segmentCount = idx;
+        break;
+    end
+end
+    
 % from now StartPacket and EndPacket are in terms of Samples and are zero-based
 clear TimeScale
 
-% Reading the data if flag 'read' is used
+%% Reading the data if flag 'read' is used
 if strcmp(ReadData, 'read')
 
     % Determine what channels to read
@@ -747,7 +766,7 @@ if strcmp(ReadData, 'read')
             NSx.Data{dataIDX} = fread(FID, [numChansToRead NSx.MetaTags.DataPoints(dataIDX)], [num2str(numChansToRead) precisionType], double((ChannelCount-numChansToRead)*2 + ChannelCount*(skipFactor-1)*2));
         end    
     else
-        fseek(FID, f.BOData, 'bof');
+        fseek(FID, f.BOData(1), 'bof');
         % Skip the file to the beginning of the time requsted, if not 0
         fseek(FID, (StartPacket - 1) * 2 * ChannelCount, 'cof');
         
@@ -819,6 +838,9 @@ if strcmpi(waveformUnits, 'uV')
         NSx.Data = bsxfun(@rdivide, double(NSx.Data), 1./(double([NSx.ElectrodesInfo.MaxAnalogValue])./double([NSx.ElectrodesInfo.MaxDigiValue]))');
     end % End of contribution
 end
+
+%% Converting the data points in sample to seconds
+NSx.MetaTags.DataPointsSec = double(NSx.MetaTags.DataPoints)/NSx.MetaTags.SamplingFreq;
 
 %% Calculating the DataPoints in seconds and adding it to MetaData
 NSx.MetaTags.DataDurationSec = double(NSx.MetaTags.DataPoints)/NSx.MetaTags.SamplingFreq;
