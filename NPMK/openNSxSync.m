@@ -64,7 +64,7 @@ if iscell(NSx.Data)
     NSx.MetaTags.DataPoints(1) = [];
     NSx.MetaTags.DataDurationSec(1) = [];
     % Re-aligning what's left
-    NSx.Data = [zeros(NSx.MetaTags.ChannelCount, NSx.MetaTags.Timestamp) NSx.Data];
+    NSx.Data = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp)/NSx.MetaTags.SamplingFreq) NSx.Data];
     NSx.MetaTags.DataPoints = NSx.MetaTags.DataPoints - NSx.MetaTags.Timestamp;
     NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints / NSx.MetaTags.SamplingFreq;
     NSx.MetaTags.Timestamp = 0;
