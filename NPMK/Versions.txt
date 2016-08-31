@@ -328,3 +328,11 @@ NPMK Version 2.8.2.0: 5 May 2014
 
 % openNSx 6.3.0.0: August 3, 2016
 %   - Added support for loading a segment of paused files.
+
+***** NPMK Version 4.4.1.0 August 31, 2016 *****
+
+% splitNSxPauses: 1.0.0.0: August 31, 2016
+%   - Initial release.
+%   - Successor to separateNSxPaused running much more memory efficient.
+
+% separateNSxPaused: This function is obsoleted. Use splitNSxPauses instead.
