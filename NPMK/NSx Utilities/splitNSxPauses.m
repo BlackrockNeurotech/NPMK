@@ -4,7 +4,7 @@ function splitNSxPauses(fileName)
 % 
 % Opens and splits an NSx file in smaller pieces, timewise.
 %
-% Use splitNSx(fileName)
+% Use splitNSxPauses(fileName)
 % 
 % All input arguments are optional. Input arguments can be in any order.
 %
@@ -12,7 +12,7 @@ function splitNSxPauses(fileName)
 %               DEFAULT: The user will be prompted to select a file.
 %
 %   Example 1: 
-%   splitNSx('C:\Datafolder\mydata.ns5');
+%   splitNSxPauses('C:\Datafolder\mydata.ns5');
 %
 %   In the example above, the file C:\Datafolder\mydata.ns5 will be opened.
 %   The loaded file will be split in samller files representing its paused 
@@ -90,11 +90,33 @@ elseif strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
     dataLength = positionEOD - positionEOE - 9;
     % Reading the number of packets
     fseek(FID, 28, 'bof');
-    numOfPackets = (dataLength)/(2*channelCount);
+%     numOfPackets = (dataLength)/(2*channelCount);
     % Calculating the number of splits
     splitCount = length(NSx.MetaTags.Timestamp);
     % Calculating the number of bytes in each segment
     segmentBytes = NSx.MetaTags.DataPoints * 2 * double(channelCount);
+    % see if available memory can accomodate that 
+    mem=memory;tooBigToLoad=segmentBytes/(0.5*mem.MemAvailableAllArrays)>1; %if > 50% available memory , to be on the safe side
+    if sum(tooBigToLoad) 
+        %then split segment(s)
+        splitIdx=find(tooBigToLoad);
+        newSegments=cell(length(segmentBytes),1);
+        for splitNum=1:length(segmentBytes)
+            if find(splitNum==splitIdx)
+            divideBy=ceil(segmentBytes(splitNum)/(0.25*mem.MemAvailableAllArrays)); %(0.5/2 bytes)
+            newSegments{splitNum}=zeros(1,divideBy);
+            newSegments{splitNum}(1:divideBy)=deal(floor(segmentBytes(splitNum)/divideBy));
+            if mod(segmentBytes(splitNum),divideBy)
+                newSegments{splitNum}(1)=newSegments{splitNum}(1)+mod(segmentBytes(splitNum),divideBy);
+            end
+            else
+                newSegments{splitNum}=segmentBytes(splitNum);
+            end
+        end
+        segmentBytes=[newSegments{:}];
+        splitCount=length(segmentBytes);
+    end
+            
     % Reading the headers and the data header
     fseek(FID, 0, 'bof');
     fileHeader = fread(FID, positionEOE, 'char');
@@ -107,7 +129,16 @@ elseif strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
         fprintf('\nReading segment %d... ', idx);
         % Reading the segment
         fseek(FID, 9, 'cof'); % Skipping the data header
-        dataSegment = fread(FID, segmentBytes(idx), 'char');
+        subdiv=ceil(segmentBytes(idx)/(4*10^8)); %need to subdivide, Matlab's loading of char into memory stalls for big chunks, for some reason
+        dataSegment=cell(subdiv,1);
+        for segbit=1:subdiv
+            if segbit==1 && mod(segmentBytes(idx),subdiv)>0
+                dataSegment{segbit} = fread(FID, floor(segmentBytes(idx)/subdiv)+mod(segmentBytes(idx),subdiv), '*char');
+            else
+                dataSegment{segbit} = fread(FID, segmentBytes(idx)/subdiv, '*char');
+            end
+        end
+%         dataSegment=vertcat(dataSegment{:});
         fprintf('Writing segment %d... ', idx);
         % Writing the segmented data into file
         fwrite(FIDw, fileHeader, 'char');
@@ -117,7 +148,7 @@ elseif strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
             dataHeader(2:5) = 0;
         end
         fwrite(FIDw, dataHeader, 'char');
-        fwrite(FIDw, dataSegment, 'char');
+        fwrite(FIDw, vertcat(dataSegment{:}));
         % Clearing variables and closing file
         clear dataSegment;
         fclose(FIDw);
