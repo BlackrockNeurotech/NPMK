@@ -1,4 +1,4 @@
-function splitNSxPauses(fileName)
+function segmentBytes=splitNSxPauses(fileName)
 
 % splitNSxPauses
 % 
@@ -29,7 +29,12 @@ function splitNSxPauses(fileName)
 % 1.0.0.0: August 31, 2016
 %   - Initial release.
 %   - Successor to separateNSxPaused running much more memory efficient.
-%
+% 1.1.0.0: Septembre 1, 2016 - VP
+%   - adjusts splitCount according to memory available, defines new segmentBytes
+%   - splits segmentBytes to work around loading stalls
+%   - loads segments as char, not doubles
+% 1.1.1.0: Septembre 2, 2016 - VP
+%   - adds segmentBytes output
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Getting the file name
@@ -87,7 +92,7 @@ elseif strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
     positionEOD = ftell(FID);
     % Calculating channelCount, data Length
     channelCount = typecast(basicHeader(311:314), 'uint32');
-    dataLength = positionEOD - positionEOE - 9;
+%     dataLength = positionEOD - positionEOE - 9;
     % Reading the number of packets
     fseek(FID, 28, 'bof');
 %     numOfPackets = (dataLength)/(2*channelCount);
