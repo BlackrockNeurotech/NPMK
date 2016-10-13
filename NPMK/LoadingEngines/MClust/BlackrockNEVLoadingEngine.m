@@ -1,4 +1,4 @@
-function [timeStamps, waveForms] = BlackrockNEVLoadingEngine_SH(varargin)
+function [timeStamps, waveForms] = BlackrockNEVLoadingEngine(varargin)
 
 %% 
 % Blackrock Microsystems NEV loading engine for MClust 3.0.
