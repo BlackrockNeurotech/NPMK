@@ -1,4 +1,4 @@
-function [timeStamps, waveForms] = BlackrockNEVLoadingEngine(fn, recordToGet, recordUnits)
+function [timeStamps, waveForms] = BlackrockNEVLoadingEngine(varargin)
 
 %% 
 % Blackrock Microsystems NEV loading engine for MClust 3.0.
@@ -8,25 +8,56 @@ function [timeStamps, waveForms] = BlackrockNEVLoadingEngine(fn, recordToGet, re
 % Blackrock Microsystems
 % 
 % Version 1.3.0.0
+%
+% Version 1.4 by Saman Hagh Gooie - 13 October 2016
+%       - Modifed to work with the latest version of the MClust v4.4
+
+
+if nargin == 1
+    fn = varargin{1};
+elseif nargin == 2
+    if strcmp(varargin{1}, 'get')
+        switch (varargin{2})
+            case 'ChannelValidity'
+                timeStamps = [true true true true]; return;
+            case 'ExpectedExtension'
+                timeStamps = '.nev'; return;
+            case 'UseFileDialog'
+                timeStamps = true; return;
+            case 'filenames'
+                timeStamps = false; return;
+            otherwise
+                error('Unknown get condition.');
+        end
+    else
+        error('2 argins requires "get" as the first argument.');
+    end
+elseif nargin == 3
+    fn = varargin{1};
+    recordToGet = varargin{2};
+    recordUnits = varargin{3};
+end
 
 
 if ~exist(fn, 'file')
     disp('File does not exist.');
-    timeStamps = 0;
-    waveForms = 0;
+    timeStamps = false;
+    waveForms = false;
     return;
 end
-
+clc
 %% Reading the entire data if recordUnits is not defined
 if ~exist('recordUnits', 'var')
     NEV = loadNEV(fn, 'read');
+    %Determining what channels are in the data file
+    readElectrodes = unique(NEV.Data.Spikes.Electrode);    
+    
     %Saving all timestamps from the file into the timeStamp output variable
-    timeStamps = NEV.Data.Spikes.TimeStamp(:, NEV.Data.Spikes.Electrode == 1);
+    timeStamps = NEV.Data.Spikes.TimeStamp(NEV.Data.Spikes.Electrode==readElectrodes(1));
     timeStamps = timeStampsToTimestampSeconds(timeStamps,NEV.MetaTags.SampleRes);
     %Saving all saveforms from the file into the waveForm output variable
     waveForms = initializeWaveform(length(timeStamps));
-    %Determining what channels are in the data file
-    readElectrodes = unique(NEV.Data.Spikes.Electrode);    
+   
     for idx = 1:length(readElectrodes)
         waveForms(:,idx,:) = NEV.Data.Spikes.Waveform(1:32,NEV.Data.Spikes.Electrode == readElectrodes(idx))';
     end
