@@ -32,6 +32,10 @@ function splitNSxNTrode
 % 1.0.0.0: January 18, 2016
 %   - Initial release.
 %
+% 1.1.0.0: October 10, 2016 - Saman Hagh Gooie
+%   - Bug fixes with file loading 
+%   - Fixed the file extension used for saving 
+% 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Validating input parameter
@@ -40,9 +44,9 @@ splitCount = length(ccf.NTrodeInfo.NTrodeID);
 
 % Getting the file name
 if ~ismac
-    [fname, path] = getFile('*.ns*', 'Choose an NSx file...');
+    [fname, path] = getFile('*.nev', 'Choose an NEV file...');
 else
-    [fname, path] = getFile('*.*', 'Choose an NSx file...');
+    [fname, path] = getFile('*.nev', 'Choose an NEV file...');
 end
 if fname == 0
     disp('No file was selected.');
@@ -57,7 +61,7 @@ fext = fname(end-3:end);
 for idx = 1:splitCount
     % Determining whether tetrode channel is recorded and valid in NSx
     tetrodeChannels = ccf.NTrodeInfo.NTrodeMembers{idx};
-    NEV = openNEV([path, fname], ['c:' num2str(tetrodeChannels)]);
+    NEV = openNEV([path, fname(1:end-4) '.nev'], ['c:' num2str(tetrodeChannels)]); % modified by SH 05-Oct-2016
     newFileName = [path fname(1:end-4) '-tet' sprintf('%03d', idx) fname(end-3:end)];
     saveNEV(NEV, newFileName, 'noreport');
 end

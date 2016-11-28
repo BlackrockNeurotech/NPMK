@@ -21,6 +21,9 @@ function CCF = parseCCF(varargin)
 % 1.1.1.0: January 19, 2016 - Kian Torab
 %   - Added a progress bar.
 %
+% 1.1.2.0: October 10, 2016 - Saman Hagh Gooie
+%   - Bug fixes with file loading
+% 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 if nargin ~= 0
@@ -65,7 +68,7 @@ if theNode.hasChildNodes
    children = struct(             ...
       'Name', allocCell, 'Attributes', allocCell,    ...
       'Data', allocCell, 'Children', allocCell);
-
+counter=0; % added by SH 05.oct.2016
     for count = 1:numChildNodes
         theChild = childNodes.item(count-1);
         children(count) = makeStructFromNode(theChild);
@@ -129,7 +132,7 @@ for i = numNodes:-1:1
         removeIndentNodes(theChild.getChildNodes);
     else
         if ( theChild.getNodeType == theChild.TEXT_NODE && ...
-           ~isempty(char(theChiﬂld.getData()))         && ...
+           ~isempty(char(theChild.getData()))         && ...
            all(isspace(char(theChild.getData()))))
          remList(end+1) = i-1; % java indexing
         end
