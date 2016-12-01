@@ -39,11 +39,7 @@ ccf = openCCF;
 splitCount = length(ccf.NTrodeInfo.NTrodeID);
 
 % Getting the file name
-if ~ismac
-    [fname, path] = getFile('*.ns*', 'Choose an NSx file...');
-else
-    [fname, path] = getFile('*.*', 'Choose an NSx file...');
-end
+[fname, path] = getFile('*.nev', 'Choose an NSx file...');
 if fname == 0
     disp('No file was selected.');
     if nargout

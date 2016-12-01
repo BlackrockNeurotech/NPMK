@@ -1,0 +1,34 @@
+clear all
+close all
+
+cbmex('open');
+cbmex('trialconfig',1,'absolute')
+  
+samplingFreq = 30000;
+eventChannel = 1;
+contChannel = 1;
+EventLFPs = [];
+EventLFPTotal = [];
+
+while size(EventLFPTotal,1) < 100
+    [spikeData, procTime, contData] = cbmex('trialdata',1);
+    %Example channel to choose for perievent marks
+    ContinuousData = contData{contChannel,3};
+    spikeTimes = spikeData{eventChannel,2}- procTime * samplingFreq;
+    
+    if ~isempty(spikeTimes)
+        EventLFPs = bsxfun(@plus, -50:50, double(spikeTimes));
+        EventLFPTotal = [EventLFPTotal; EventLFPs];
+    end
+%    for i = 1:length(SpikeTimes)
+        
+%     	  try
+%             EventLFPs(size(EventLFPs,1)+1,:) = ContinuousData(SpikeTimes(i):SpikeTimes(i)+100);
+%         catch
+%         end
+%    end
+    pause(0.5);
+end
+cbmex('close');
+
+plot(mean(EventLFPTotal,1));

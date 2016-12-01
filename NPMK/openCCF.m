@@ -14,7 +14,7 @@ function [infoPackets, version] = openCCF(filename)
 %   Channels
 %    
 %   Kian Torab
-%   ktorab@blackrockmicro.com
+%   kian@blackrockmicro.com
 %   Blackrock Microsystems
 %   Version 2.1.0.0
 %
@@ -37,7 +37,7 @@ function [infoPackets, version] = openCCF(filename)
 %   - Fixed a bug in loading nTrode groups with a base of 0.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-infoPackets.openCCFVersion = '2.0.0.0';
+infoPackets.openCCFVersion = '2.1.0.0';
 
 %% Parameters
 
