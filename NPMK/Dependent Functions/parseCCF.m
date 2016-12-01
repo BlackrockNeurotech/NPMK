@@ -21,9 +21,15 @@ function CCF = parseCCF(varargin)
 % 1.1.1.0: January 19, 2016 - Kian Torab
 %   - Added a progress bar.
 %
+<<<<<<< HEAD
 % 1.1.2.0: October 20, 2016 - Saman Hagh-gooie
 %   - Fixed a invalid character bug.
 %
+=======
+% 1.1.2.0: October 10, 2016 - Saman Hagh Gooie
+%   - Bug fixes with file loading
+% 
+>>>>>>> origin/master
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 if nargin ~= 0
@@ -68,8 +74,12 @@ if theNode.hasChildNodes
    children = struct(             ...
       'Name', allocCell, 'Attributes', allocCell,    ...
       'Data', allocCell, 'Children', allocCell);
+<<<<<<< HEAD
     
    counter = 0;
+=======
+counter=0; % added by SH 05.oct.2016
+>>>>>>> origin/master
     for count = 1:numChildNodes
         theChild = childNodes.item(count-1);
         children(count) = makeStructFromNode(theChild);
