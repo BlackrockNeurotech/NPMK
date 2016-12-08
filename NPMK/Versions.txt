@@ -336,3 +336,9 @@ NPMK Version 2.8.2.0: 5 May 2014
 %   - Successor to separateNSxPaused running much more memory efficient.
 
 % separateNSxPaused: This function is obsoleted. Use splitNSxPauses instead.
+
+***** NPMK Version 4.4.2.0 December 1, 2016 *****
+
+% openNSx: 6.4.0.0: December 1, 2016
+%   - Fixed a serious bug related to loading paused files.
+%   - Fixed a bug where an empty data segment resulted in a cell structure.
