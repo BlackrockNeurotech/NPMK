@@ -718,7 +718,7 @@ if StartPacket <= 0
     StartPacket = 1;
 end
 if EndPacket > sum(NSx.MetaTags.DataPoints)
-    if StartPacket >= NSx.MetaTags.DataPoints
+    if StartPacket >= sum(NSx.MetaTags.DataPoints)
         disp('The starting packet is greater than the total data duration.');
         disp('The file was not read.');
         fclose(FID);
