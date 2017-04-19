@@ -213,6 +213,13 @@ function varargout = openNSx(varargin)
 % 6.3.0.0: August 3, 2016
 %   - Added support for loading a segment of paused files.
 %
+% 6.3.1.0: August 31, 2016
+%   - Fixed a bug when reading a non-o start across a paused segment.
+%
+% 6.4.0.0: December 1, 2016
+%   - Fixed a serious bug related to loading paused files.
+%   - Fixed a bug where an empty data segment resulted in a cell structure.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -711,7 +718,7 @@ if StartPacket <= 0
     StartPacket = 1;
 end
 if EndPacket > sum(NSx.MetaTags.DataPoints)
-    if StartPacket >= NSx.MetaTags.DataPoints
+    if StartPacket >= sum(NSx.MetaTags.DataPoints)
         disp('The starting packet is greater than the total data duration.');
         disp('The file was not read.');
         fclose(FID);
@@ -731,24 +738,54 @@ end
 % read.
 EndPacket = EndPacket / skipFactor; 
 
-DataLength = EndPacket - StartPacket + 1;
-
-% Adjusting the reading timestamps for paused files
-if DataLength < NSx.MetaTags.DataPoints(1)
-    NSx.MetaTags.DataPoints = DataLength;
-    NSx.MetaTags.Timestamp(2:end) = [];
-    segmentCount = 1;
-    NSx.RawData.PausedFile = 0;
-end
-for idx = 2:length(NSx.MetaTags.DataPoints)
-	if sum(NSx.MetaTags.DataPoints(1:idx)) > DataLength
-        NSx.MetaTags.DataPoints(idx) = DataLength - sum(NSx.MetaTags.DataPoints(1:idx-1));
-        NSx.MetaTags.DataPoints(idx+1:end) = [];
-        NSx.MetaTags.Timestamp(idx+1:end) = [];
-        segmentCount = idx;
-        break;
+% Finding which data segment the StartPacket is falling in-between
+segmentCounters = [];
+startTimeStampShift = 0;
+if NSx.RawData.PausedFile
+    dataPointOfInterest = StartPacket;
+    for idx = 1:length(NSx.MetaTags.DataPoints)
+        if dataPointOfInterest <= sum(NSx.MetaTags.DataPoints(1:idx)) %sum(NSx.MetaTags.DataPoints(1:idx)) < dataPointOfInterest && ...
+            if isempty(segmentCounters)
+                if idx == 1
+                    segmentStartPacket(idx) = dataPointOfInterest;
+                else
+                    segmentStartPacket(idx) = dataPointOfInterest - (sum(NSx.MetaTags.DataPoints(1:idx-1)));
+                end
+                startTimeStampShift = segmentStartPacket(idx) - 1;
+                if EndPacket <= sum(NSx.MetaTags.DataPoints(1:idx))
+                    segmentDataPoints(idx) = EndPacket - sum(NSx.MetaTags.DataPoints(1:idx-1)) - segmentStartPacket(idx) + 1;
+                    segmentCounters = [idx, idx];
+                    break;
+                end
+                segmentDataPoints(idx) = sum(NSx.MetaTags.DataPoints(1:idx)) - dataPointOfInterest + 1;
+                dataPointOfInterest = EndPacket;
+            else
+                segmentStartPacket(idx) = 1;
+                if idx == 1
+                	segmentDataPoints(idx) = dataPointOfInterest;
+                else
+                    segmentDataPoints(idx) = dataPointOfInterest - sum(NSx.MetaTags.DataPoints(1:idx-1));
+                    segmentCounters(length(segmentCounters)+1) = idx;
+                end
+                break;
+            end
+            segmentCounters(length(segmentCounters)+1) = idx;
+        else
+            if isempty(segmentCounters)
+                segmentStartPacket(idx) = NSx.MetaTags.DataPoints(idx);
+                segmentDataPoints(idx) = 0;
+            elseif length(segmentCounters) == 1
+                segmentStartPacket(idx) = 1;
+                segmentDataPoints(idx) = NSx.MetaTags.DataPoints(idx);
+            else
+                segmentStartPacket(idx) = 1;
+                segmentDataPoints(idx) = 0;
+            end
+        end
     end
 end
+
+DataLength = EndPacket - StartPacket + 1;
     
 % from now StartPacket and EndPacket are in terms of Samples and are zero-based
 clear TimeScale
@@ -759,19 +796,25 @@ if strcmp(ReadData, 'read')
     % Determine what channels to read
     numChansToRead = double(length(min(userRequestedChanRow):max(userRequestedChanRow)));
     if NSx.RawData.PausedFile
-        for dataIDX = 1:segmentCount
+        for dataIDX = segmentCounters(1):segmentCounters(2) %1:length(NSx.MetaTags.DataPoints)
             fseek(FID, f.BOData(dataIDX), 'bof');
+            % Skip the file to the beginning of the time requsted, if not 0
+            fseek(FID, (segmentStartPacket(dataIDX) - 1) * 2 * ChannelCount, 'cof');
             % Skip the file to the first channel to read
             fseek(FID, (find(NSx.MetaTags.ChannelID == min(userRequestedChannels))-1) * 2, 'cof');        
-            NSx.Data{dataIDX} = fread(FID, [numChansToRead NSx.MetaTags.DataPoints(dataIDX)], [num2str(numChansToRead) precisionType], double((ChannelCount-numChansToRead)*2 + ChannelCount*(skipFactor-1)*2));
-        end    
+            % Read data
+            NSx.Data{size(NSx.Data,2)+1} = fread(FID, [numChansToRead segmentDataPoints(dataIDX)], [num2str(numChansToRead) precisionType], double((ChannelCount-numChansToRead)*2 + ChannelCount*(skipFactor-1)*2));
+        end
+        NSx.MetaTags.DataPoints = segmentDataPoints(segmentCounters(1):segmentCounters(2));
+        NSx.MetaTags.Timestamp = NSx.MetaTags.Timestamp(segmentCounters(1):segmentCounters(2));
+        NSx.MetaTags.Timestamp(1) = NSx.MetaTags.Timestamp(1) + startTimeStampShift;
     else
         fseek(FID, f.BOData(1), 'bof');
         % Skip the file to the beginning of the time requsted, if not 0
         fseek(FID, (StartPacket - 1) * 2 * ChannelCount, 'cof');
-        
         % Skip the file to the first channel to read
         fseek(FID, (find(NSx.MetaTags.ChannelID == min(userRequestedChannels))-1) * 2, 'cof');        
+        % Read data
         NSx.Data = fread(FID, [numChansToRead DataLength], [num2str(numChansToRead) precisionType], double((ChannelCount-numChansToRead)*2 + ChannelCount*(skipFactor-1)*2));
     end
 end
@@ -783,7 +826,7 @@ if NSx.RawData.PausedFile && strcmp(ReadData, 'read')
     end
 end
 
-%% Fixing a bug in 6.03 where data packets with 0 lengh may be added
+% Fixing a bug in 6.03 where data packets with 0 lengh may be added
 if any(NSx.MetaTags.DataPoints == 0) && strcmp(ReadData, 'read')
     segmentsThatAreZero = find(NSx.MetaTags.DataPoints == 0);
     NSx.MetaTags.DataPoints(segmentsThatAreZero) = [];
@@ -804,30 +847,37 @@ if ~isempty(setdiff(channelThatWereRead,userRequestedChanRow))
     end
 end
 
+%% Remove the cell if there is only one recorded segment present
+if all(size(NSx.Data) == [1,1])
+    NSx.Data = NSx.Data{1};
+end
+
 %% Adjusting the ChannelID variable to match the read electrodes
 channelIDToDelete = setdiff(1:ChannelCount, userRequestedChanRow);
 NSx.MetaTags.ChannelID(channelIDToDelete) = [];
 
 %% Adjusting the file for a non-0 timestamp start
-if length(NSx.MetaTags.Timestamp) > 1
-    cellIDX = 1; % only do this for the first cell segment and not modify the subsequent segments
-    if strcmpi(ReadData, 'read')
-        NSx.Data{cellIDX} = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp(cellIDX) / skipFactor)) NSx.Data{cellIDX}];
+if ~NSx.RawData.PausedFile
+    if length(NSx.MetaTags.Timestamp) > 1
+        cellIDX = 1; % only do this for the first cell segment and not modify the subsequent segments
+        if strcmpi(ReadData, 'read')
+            NSx.Data{cellIDX} = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp(cellIDX) / skipFactor)) NSx.Data{cellIDX}];
+        end
+        NSx.MetaTags.DataPoints(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) + NSx.MetaTags.Timestamp(cellIDX);
+        NSx.MetaTags.DataDurationSec(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) / NSx.MetaTags.SamplingFreq;
+        NSx.MetaTags.Timestamp(cellIDX) = 0;
+    elseif strcmpi(ReadData, 'read')
+        NSx.Data = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp / skipFactor)) NSx.Data];
+        NSx.MetaTags.DataPoints = size(NSx.Data,2);
+        NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints / NSx.MetaTags.SamplingFreq;
+        NSx.MetaTags.Timestamp = 0;
     end
-    NSx.MetaTags.DataPoints(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) + NSx.MetaTags.Timestamp(cellIDX);
-    NSx.MetaTags.DataDurationSec(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) / NSx.MetaTags.SamplingFreq;
-    NSx.MetaTags.Timestamp(cellIDX) = 0;
-elseif strcmpi(ReadData, 'read')
-    NSx.Data = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp / skipFactor)) NSx.Data];
-    NSx.MetaTags.DataPoints = size(NSx.Data,2);
-    NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints / NSx.MetaTags.SamplingFreq;
-    NSx.MetaTags.Timestamp = 0;
-end
 
-if strcmpi(multinsp, 'yes')
-    NSx.Data = [zeros(NSx.MetaTags.ChannelCount, syncShift) NSx.Data];
-    NSx.MetaTags.DataPoints = size(NSx.Data,2);
-    NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints / NSx.MetaTags.SamplingFreq;
+    if strcmpi(multinsp, 'yes')
+        NSx.Data = [zeros(NSx.MetaTags.ChannelCount, syncShift) NSx.Data];
+        NSx.MetaTags.DataPoints = size(NSx.Data,2);
+        NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints / NSx.MetaTags.SamplingFreq;
+    end
 end
 
 %% Adjusting for the data's unit.
