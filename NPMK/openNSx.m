@@ -220,6 +220,14 @@ function varargout = openNSx(varargin)
 %   - Fixed a serious bug related to loading paused files.
 %   - Fixed a bug where an empty data segment resulted in a cell structure.
 %
+% 6.4.1.0: June 15, 2017
+%   - It is no longer necessary to provide the full path for loading a
+%     file.
+%
+% 6.4.2.0: September 1, 2017
+%   - Fixed a bug related to reading data from sample that is not 1 and
+%     timestamp that used to get reset to 0.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -340,7 +348,8 @@ for i=1:length(varargin)
                 (strcmpi(temp(3),'\') || ...
                  strcmpi(temp(1),'/') || ...
                  strcmpi(temp(2),'/') || ...
-                 strcmpi(temp(1:2), '\\')) 
+                 strcmpi(temp(1:2), '\\') || ...
+                 strcmpi(temp(end-3), '.'))
             fname = inputArgument;
             if exist(fname, 'file') ~= 2
                 disp('The file does not exist.');
@@ -503,7 +512,9 @@ f.EOF = double(ftell(FID));
 % Read Raw Header for saveNSx
 fseek(FID, 0, 'bof');
 NSx.RawData.Headers = fread(FID, f.EOexH, '*uint8');
+% if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
 NSx.RawData.DataHeader = fread(FID, 9, '*uint8');
+% end
 fseek(FID, f.EOexH, 'bof');
 
 
@@ -662,6 +673,8 @@ if ~elecReading
             NSx.MetaTags.ChannelCount = length(userRequestedChannels);
         end
     end
+else
+    NSx.MetaTags.ChannelCount = length(userRequestedChannels);
 end
 
 for idx = 1:length(userRequestedChannels)
@@ -718,7 +731,7 @@ if StartPacket <= 0
     StartPacket = 1;
 end
 if EndPacket > sum(NSx.MetaTags.DataPoints)
-    if StartPacket >= sum(NSx.MetaTags.DataPoints)
+    if StartPacket >= NSx.MetaTags.DataPoints
         disp('The starting packet is greater than the total data duration.');
         disp('The file was not read.');
         fclose(FID);
@@ -857,7 +870,7 @@ channelIDToDelete = setdiff(1:ChannelCount, userRequestedChanRow);
 NSx.MetaTags.ChannelID(channelIDToDelete) = [];
 
 %% Adjusting the file for a non-0 timestamp start
-if ~NSx.RawData.PausedFile
+if ~NSx.RawData.PausedFile & StartPacket == 1
     if length(NSx.MetaTags.Timestamp) > 1
         cellIDX = 1; % only do this for the first cell segment and not modify the subsequent segments
         if strcmpi(ReadData, 'read')
@@ -915,7 +928,7 @@ end
 %% If user does not specify an output argument it will automatically create
 %  a structure.
 outputName = ['NS' fext(4)];
-if (nargout == 0),
+if (nargout == 0)
     assignin('caller', outputName, NSx);
 else
     varargout{1} = NSx;
