@@ -228,6 +228,10 @@ function varargout = openNSx(varargin)
 %   - Fixed a bug related to reading data from sample that is not 1 and
 %     timestamp that used to get reset to 0.
 %
+% 6.4.3.0: September 3, 2017
+%   - Removed a redundant block of code that was accidentally placed in the
+%     script twice.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -517,43 +521,6 @@ NSx.RawData.DataHeader = fread(FID, 9, '*uint8');
 % end
 fseek(FID, f.EOexH, 'bof');
 
-
-
-%% Added by NH - Feb 19, 2014
-% Create incrementing loop to skip from dataheader to dataheader and 
-% collect the dataheader data in individual cells
-headerCount = 0;
-if NSx.RawData.PausedFile == 1
-    while double(ftell(FID)) < f.EOF
-        headerCount = headerCount + 1;
-        DataHeader{headerCount} = fread(FID, 9);
-        fseek(FID,-9,'cof');
-        fread(FID,5);
-        DataPoints(headerCount) = fread(FID,1,'uint32');
-
-
-        f.BOData(headerCount) = double(ftell(FID));
-        fseek(FID, DataPoints(headerCount) * ChannelCount * 2, 'cof');
-        f.EOData(headerCount) = double(ftell(FID));
-    end
-
-    % Create an array that will contain all of the dataheader data
-    % collected in the cells above
-    FinalDataHeader = [];
-
-    %Fill the above mentioned pre-created array
-    for i = 1:headerCount
-        FinalDataHeader = cat(1,FinalDataHeader,DataHeader(i));
-    end
-
-    % Convert to correct type for interpreting in separatingPausedNSx
-    FinalDataHeader = cell2mat(FinalDataHeader);
-
-    NSx.RawData.DataHeader = FinalDataHeader;
-
-    fseek(FID, f.EOexH, 'bof');
-end
-
 %% Reading all data headers and calculating all the file pointers for data
 % and headers
 if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALSG')
@@ -590,20 +557,6 @@ elseif strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
     end
 end
 
-%% Temporary removing this code as it's causing a bug in other segments. It
-%% does not appear to be neccesary any longer.
-% Fixing a bug in 6.03.00.00 TOC where an extra data packet (length 9) was
-% written for no reason. Removing the information read for the extra
-% invalid packet
-% if length(NSx.MetaTags.DataPoints) > 1 && all(NSx.MetaTags.Timestamp(1:2) == [0,0])
-%     NSx.MetaTags.DataPoints(1) = [];
-%     NSx.MetaTags.Timestamp(1) = [];
-%     f.BOData(1) = [];
-%     f.EOData(1) = [];
-%     segmentCount = 1;
-% end
-%%
-
 % Determining if the file has a pause in it
 if length(NSx.MetaTags.DataPoints) > 1
     NSx.RawData.PausedFile = 1;
@@ -614,21 +567,17 @@ if length(NSx.MetaTags.DataPoints) > 1
 %     end
 end
 
+
 %% Added by NH - Feb 19, 2014
 % Create incrementing loop to skip from dataheader to dataheader and 
 % collect the dataheader data in individual cells
-
-CurrentPlace = ftell(FID);
-fseek(FID, f.EOexH, 'bof');
 headerCount = 0;
 if NSx.RawData.PausedFile == 1
     while double(ftell(FID)) < f.EOF
         headerCount = headerCount + 1;
-        DataHeader{headerCount} = fread(FID, 9);
-        fseek(FID,-9,'cof');
-        fread(FID,5);
-        DataPoints(headerCount) = fread(FID,1,'uint32');
-
+        fseek(FID, f.EOexH, 'bof');
+        DataHeader{headerCount} = fread(FID, 9, '*uint8');
+        DataPoints(headerCount) = typecast(DataHeader{headerCount}(6:9), 'uint32');
 
         f.BOData(headerCount) = double(ftell(FID));
         fseek(FID, DataPoints(headerCount) * ChannelCount * 2, 'cof');
@@ -651,9 +600,6 @@ if NSx.RawData.PausedFile == 1
 
     fseek(FID, f.EOexH, 'bof');
 end
-
-fseek(FID,CurrentPlace,'bof');
-
 
 %% Copying ChannelID to MetaTags for filespec 2.2 and 2.3 for compatibility with filespec 2.1
 if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
