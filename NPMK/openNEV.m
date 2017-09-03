@@ -196,6 +196,9 @@ function varargout = openNEV(varargin)
 %   - Added parsing of comment start time and comment committ time (time
 %     that a comment is entered.
 %
+% 5.3.1.0: September 1, 2017
+%   - Fixed a bug with file path and whent this was passed to the function.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining structures
@@ -259,7 +262,8 @@ for i=1:length(varargin)
                     (strcmpi(temp(3),'\') || ...
                      strcmpi(temp(1),'/') || ...
                      strcmpi(temp(2),'/') || ...
-                     strcmpi(temp(1:2), '\\'))                
+                     strcmpi(temp(1:2), '\\') || ...
+                     strcmpi(temp(end-3), '.'))
                 fileFullPath = varargin{i};
                 if exist(fileFullPath, 'file') ~= 2
                     disp('The file does not exist.');

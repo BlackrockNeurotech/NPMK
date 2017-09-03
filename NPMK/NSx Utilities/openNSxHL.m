@@ -42,6 +42,9 @@ function OUTPUT = openNSxHL(fname)
 % 1.0.0.0:
 %   - Initial release.
 %
+% 1.1.0.0: June 16, 2017
+%   - Pads the data with zeros when the beginning timestamp is not 0.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Opening the file
@@ -85,7 +88,7 @@ if strcmpi(FileTypeID, 'NEURALSG')
 elseif strcmpi(FileTypeID, 'NEURALCD')
     dataHeaderBytes = 9;
     BasicHeader   = fread(FID, 306, '*uint8');
-    HeaderBytes   = double(typecast(BasicHeader(3:6), 'uint32')) + dataHeaderBytes;
+    HeaderBytes   = double(typecast(BasicHeader(3:6), 'uint32'));
 else
     disp('This version of NSxToXXX can only read File Specs 2.1, 2.2 and 2.3');
     disp(['The selected file spec is ' NSx.MetaTags.FileSpec '.']);
@@ -94,10 +97,22 @@ else
     return;
 end
 
+% Finding the number of channels
+fseek(FID, 310, 'bof');
+numofChannels = fread(FID, 1, '*uint32');
+
 % Skipping to the point where the data is saved, skipping the header info
 fseek(FID, HeaderBytes, 'bof');
+
+% Finding the beginning timestamp so it can be padded with zeros in case
+% it's not 0 already.
+fseek(FID, 1, 'cof'); % Skipping to timestamp
+begTimestamp = fread(FID, 1, '*uint32');
+paddedZeros = zeros(numofChannels * begTimestamp * 2, 1);
+fseek(FID, 4, 'cof'); % Skipping to data
 
 % Reading the header-less data
 disp(['Reading the data from file ' path fname '...']);
 OUTPUT = fread(FID, inf, '*int16');
+OUTPUT = [paddedZeros; OUTPUT];
 fclose(FID);

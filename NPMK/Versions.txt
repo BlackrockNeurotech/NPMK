@@ -342,3 +342,20 @@ NPMK Version 2.8.2.0: 5 May 2014
 % openNSx: 6.4.0.0: December 1, 2016
 %   - Fixed a serious bug related to loading paused files.
 %   - Fixed a bug where an empty data segment resulted in a cell structure.
+
+***** NPMK Version 4.5.0.0 :September 1, 2017 *****
+
+% openNEV 5.3.1.0: September 1, 2017
+%   - Fixed a bug with file path and whent this was passed to the function.
+
+% openNSxHL 1.1.0.0: June 16, 2017
+%   - Pads the data with zeros when the beginning timestamp is not 0.
+
+% openNSx 6.4.2.0: September 1, 2017
+%   - Fixed a bug related to reading data from sample that is not 1 and
+%     timestamp that used to get reset to 0.
+
+% parseCCF 1.1.2.0: October 20, 2016
+%   - Fixed a invalid character bug.
+%   - Bug fixes with file loading
+
