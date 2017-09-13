@@ -228,9 +228,10 @@ function varargout = openNSx(varargin)
 %   - Fixed a bug related to reading data from sample that is not 1 and
 %     timestamp that used to get reset to 0.
 %
-% 6.4.3.0: September 3, 2017
+% 6.4.3.0: September 13, 2017
 %   - Removed a redundant block of code that was accidentally placed in the
 %     script twice.
+%   - Checks to see if there's a newer version of NPMK is available.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

@@ -199,7 +199,14 @@ function varargout = openNEV(varargin)
 % 5.3.1.0: September 1, 2017
 %   - Fixed a bug with file path and whent this was passed to the function.
 %
+% 5.4.0.0: September 13, 2017
+%   - Checks to see if there's a newer version of NPMK is available.
+%   - Properly reads the comment colors.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Check for the latest version fo NPMK
+NPMKverChecker
 
 %% Defining structures
 NEV = struct('MetaTags',[], 'ElectrodesInfo', [], 'Data', []);
@@ -661,10 +668,11 @@ if strcmpi(Flags.ReadData, 'read')
             NEV.Data.Comments.TimeStamp = Timestamp(commentIndices);
             NEV.Data.Comments.TimeStampSec = double(NEV.Data.Comments.TimeStamp)/double(NEV.MetaTags.TimeRes);
             NEV.Data.Comments.CharSet = tRawData(7, commentIndices);
+            colorFlag = tRawData(8, commentIndices);
             NEV.Data.Comments.TimeStampStarted = tRawData(9:12, commentIndices);
             NEV.Data.Comments.TimeStampStarted = typecast(NEV.Data.Comments.TimeStampStarted(:), 'uint32').';
             NEV.Data.Comments.Text  = char(tRawData(13:Trackers.countPacketBytes, commentIndices).');
-                 
+            
             % Transferring NeuroMotive Events to its own structure
             neuroMotiveEvents = find(NEV.Data.Comments.CharSet == 255);
             NEV.Data.TrackingEvents.TimeStamp = NEV.Data.Comments.TimeStamp(neuroMotiveEvents);
@@ -682,10 +690,15 @@ if strcmpi(Flags.ReadData, 'read')
             NEV.Data.Comments.TimeStamp(neuroMotiveEvents) = [];
             NEV.Data.Comments.TimeStampSec(neuroMotiveEvents) = [];
             NEV.Data.Comments.CharSet(neuroMotiveEvents) = [];
-            
             NEV.Data.Comments.TimeStampStarted(neuroMotiveEvents) = [];
             NEV.Data.Comments.TimeStampStartedSec = double(NEV.Data.Comments.TimeStampStarted)/double(NEV.MetaTags.TimeRes);
             NEV.Data.Comments.Text(neuroMotiveEvents,:) = [];
+            colorFlag(neuroMotiveEvents) = [];
+            
+            % Figuring out the text color of the comments that had color
+            NEV.Data.Comments.Color = dec2hex(NEV.Data.Comments.TimeStampStarted);
+            NEV.Data.Comments.Color(colorFlag == 1,:) = repmat('0', size(NEV.Data.Comments.Color(colorFlag == 1,:)));
+            NEV.Data.Comments.TimeStampStarted(colorFlag == 0) = NEV.Data.Comments.TimeStamp(colorFlag == 0);            
             
             clear commentIndices;
         end

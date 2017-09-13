@@ -359,3 +359,18 @@ NPMK Version 2.8.2.0: 5 May 2014
 %   - Fixed a invalid character bug.
 %   - Bug fixes with file loading
 
+***** NPMK Version 4.5.1.0 :September 13, 2017 *****
+
+% openNSx 6.4.3.0: September 13, 2017
+%   - Removed a redundant block of code that was accidentally placed in the
+%     script twice.
+%   - Checks to see if there's a newer version of NPMK is available.
+
+% openNEV 5.4.0.0: September 13, 2017
+%   - Checks to see if there's a newer version of NPMK is available.
+%   - Properly reads the comment colors.
+
+% NPMKverChecker 1.0.0.0: September 13, 2017
+%   - Initial Release.
+
+LATEST:4.5.1.0
