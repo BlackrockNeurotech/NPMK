@@ -242,7 +242,11 @@ NSx.MetaTags = struct('FileTypeID',[],'SamplingLabel',[],'ChannelCount',[],'Samp
                       'Timestamp', [], 'DataPoints', [], 'DataDurationSec', [], 'openNSxver', [], 'Filename', [], 'FilePath', [], ...
                       'FileExt', []);
 
-NSx.MetaTags.openNSxver = '6.2.0.0';
+                                    
+NSx.MetaTags.openNSxver = '6.4.3.0';
+                  
+%% Check for the latest version fo NPMK
+NPMKverChecker
 
 % Defining constants
 ExtHeaderLength = 66;
