@@ -373,4 +373,4 @@ NPMK Version 2.8.2.0: 5 May 2014
 % NPMKverChecker 1.0.0.0: September 13, 2017
 %   - Initial Release.
 
-LATEST:4.5.1.0
+LATEST:4.5.1.1
