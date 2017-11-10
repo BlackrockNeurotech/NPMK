@@ -220,6 +220,19 @@ function varargout = openNSx(varargin)
 %   - Fixed a serious bug related to loading paused files.
 %   - Fixed a bug where an empty data segment resulted in a cell structure.
 %
+% 6.4.1.0: June 15, 2017
+%   - It is no longer necessary to provide the full path for loading a
+%     file.
+%
+% 6.4.2.0: September 1, 2017
+%   - Fixed a bug related to reading data from sample that is not 1 and
+%     timestamp that used to get reset to 0.
+%
+% 6.4.3.0: September 13, 2017
+%   - Removed a redundant block of code that was accidentally placed in the
+%     script twice.
+%   - Checks to see if there's a newer version of NPMK is available.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -229,7 +242,11 @@ NSx.MetaTags = struct('FileTypeID',[],'SamplingLabel',[],'ChannelCount',[],'Samp
                       'Timestamp', [], 'DataPoints', [], 'DataDurationSec', [], 'openNSxver', [], 'Filename', [], 'FilePath', [], ...
                       'FileExt', []);
 
-NSx.MetaTags.openNSxver = '6.2.0.0';
+                                    
+NSx.MetaTags.openNSxver = '6.4.3.0';
+                  
+%% Check for the latest version fo NPMK
+NPMKverChecker
 
 % Defining constants
 ExtHeaderLength = 66;
@@ -340,7 +357,8 @@ for i=1:length(varargin)
                 (strcmpi(temp(3),'\') || ...
                  strcmpi(temp(1),'/') || ...
                  strcmpi(temp(2),'/') || ...
-                 strcmpi(temp(1:2), '\\')) 
+                 strcmpi(temp(1:2), '\\') || ...
+                 strcmpi(temp(end-3), '.'))
             fname = inputArgument;
             if exist(fname, 'file') ~= 2
                 disp('The file does not exist.');
@@ -503,45 +521,10 @@ f.EOF = double(ftell(FID));
 % Read Raw Header for saveNSx
 fseek(FID, 0, 'bof');
 NSx.RawData.Headers = fread(FID, f.EOexH, '*uint8');
+% if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
 NSx.RawData.DataHeader = fread(FID, 9, '*uint8');
+% end
 fseek(FID, f.EOexH, 'bof');
-
-
-
-%% Added by NH - Feb 19, 2014
-% Create incrementing loop to skip from dataheader to dataheader and 
-% collect the dataheader data in individual cells
-headerCount = 0;
-if NSx.RawData.PausedFile == 1
-    while double(ftell(FID)) < f.EOF
-        headerCount = headerCount + 1;
-        DataHeader{headerCount} = fread(FID, 9);
-        fseek(FID,-9,'cof');
-        fread(FID,5);
-        DataPoints(headerCount) = fread(FID,1,'uint32');
-
-
-        f.BOData(headerCount) = double(ftell(FID));
-        fseek(FID, DataPoints(headerCount) * ChannelCount * 2, 'cof');
-        f.EOData(headerCount) = double(ftell(FID));
-    end
-
-    % Create an array that will contain all of the dataheader data
-    % collected in the cells above
-    FinalDataHeader = [];
-
-    %Fill the above mentioned pre-created array
-    for i = 1:headerCount
-        FinalDataHeader = cat(1,FinalDataHeader,DataHeader(i));
-    end
-
-    % Convert to correct type for interpreting in separatingPausedNSx
-    FinalDataHeader = cell2mat(FinalDataHeader);
-
-    NSx.RawData.DataHeader = FinalDataHeader;
-
-    fseek(FID, f.EOexH, 'bof');
-end
 
 %% Reading all data headers and calculating all the file pointers for data
 % and headers
@@ -579,20 +562,6 @@ elseif strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
     end
 end
 
-%% Temporary removing this code as it's causing a bug in other segments. It
-%% does not appear to be neccesary any longer.
-% Fixing a bug in 6.03.00.00 TOC where an extra data packet (length 9) was
-% written for no reason. Removing the information read for the extra
-% invalid packet
-% if length(NSx.MetaTags.DataPoints) > 1 && all(NSx.MetaTags.Timestamp(1:2) == [0,0])
-%     NSx.MetaTags.DataPoints(1) = [];
-%     NSx.MetaTags.Timestamp(1) = [];
-%     f.BOData(1) = [];
-%     f.EOData(1) = [];
-%     segmentCount = 1;
-% end
-%%
-
 % Determining if the file has a pause in it
 if length(NSx.MetaTags.DataPoints) > 1
     NSx.RawData.PausedFile = 1;
@@ -603,21 +572,17 @@ if length(NSx.MetaTags.DataPoints) > 1
 %     end
 end
 
+
 %% Added by NH - Feb 19, 2014
 % Create incrementing loop to skip from dataheader to dataheader and 
 % collect the dataheader data in individual cells
-
-CurrentPlace = ftell(FID);
-fseek(FID, f.EOexH, 'bof');
 headerCount = 0;
 if NSx.RawData.PausedFile == 1
     while double(ftell(FID)) < f.EOF
         headerCount = headerCount + 1;
-        DataHeader{headerCount} = fread(FID, 9);
-        fseek(FID,-9,'cof');
-        fread(FID,5);
-        DataPoints(headerCount) = fread(FID,1,'uint32');
-
+        fseek(FID, f.EOexH, 'bof');
+        DataHeader{headerCount} = fread(FID, 9, '*uint8');
+        DataPoints(headerCount) = typecast(DataHeader{headerCount}(6:9), 'uint32');
 
         f.BOData(headerCount) = double(ftell(FID));
         fseek(FID, DataPoints(headerCount) * ChannelCount * 2, 'cof');
@@ -641,9 +606,6 @@ if NSx.RawData.PausedFile == 1
     fseek(FID, f.EOexH, 'bof');
 end
 
-fseek(FID,CurrentPlace,'bof');
-
-
 %% Copying ChannelID to MetaTags for filespec 2.2 and 2.3 for compatibility with filespec 2.1
 if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
     NSx.MetaTags.ChannelID = [NSx.ElectrodesInfo.ElectrodeID]';
@@ -662,6 +624,8 @@ if ~elecReading
             NSx.MetaTags.ChannelCount = length(userRequestedChannels);
         end
     end
+else
+    NSx.MetaTags.ChannelCount = length(userRequestedChannels);
 end
 
 for idx = 1:length(userRequestedChannels)
@@ -718,7 +682,7 @@ if StartPacket <= 0
     StartPacket = 1;
 end
 if EndPacket > sum(NSx.MetaTags.DataPoints)
-    if StartPacket >= sum(NSx.MetaTags.DataPoints)
+    if StartPacket >= NSx.MetaTags.DataPoints
         disp('The starting packet is greater than the total data duration.');
         disp('The file was not read.');
         fclose(FID);
@@ -857,7 +821,7 @@ channelIDToDelete = setdiff(1:ChannelCount, userRequestedChanRow);
 NSx.MetaTags.ChannelID(channelIDToDelete) = [];
 
 %% Adjusting the file for a non-0 timestamp start
-if ~NSx.RawData.PausedFile
+if ~NSx.RawData.PausedFile & StartPacket == 1
     if length(NSx.MetaTags.Timestamp) > 1
         cellIDX = 1; % only do this for the first cell segment and not modify the subsequent segments
         if strcmpi(ReadData, 'read')
@@ -915,7 +879,7 @@ end
 %% If user does not specify an output argument it will automatically create
 %  a structure.
 outputName = ['NS' fext(4)];
-if (nargout == 0),
+if (nargout == 0)
     assignin('caller', outputName, NSx);
 else
     varargout{1} = NSx;
