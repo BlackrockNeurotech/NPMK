@@ -700,7 +700,10 @@ end
 % the data read.
 % DEBUG: This is not needed since the same length of data is to be
 % read.
-EndPacket = EndPacket / skipFactor; 
+% AB20171130 in any case StartPacket should also be adjusted for
+% consistency
+%EndPacket = EndPacket / skipFactor; 
+%StartPacket = (StartPacket-1)/skipFactor + 1;
 
 % Finding which data segment the StartPacket is falling in-between
 segmentCounters = [];
@@ -750,7 +753,10 @@ if NSx.RawData.PausedFile
 end
 
 DataLength = EndPacket - StartPacket + 1;
-    
+
+% AB20171130 adjusting DataLength for skipfactor
+DataLength = floor(DataLength/skipFactor);
+
 % from now StartPacket and EndPacket are in terms of Samples and are zero-based
 clear TimeScale
 
@@ -774,7 +780,7 @@ if strcmp(ReadData, 'read')
         NSx.MetaTags.Timestamp(1) = NSx.MetaTags.Timestamp(1) + startTimeStampShift;
     else
         fseek(FID, f.BOData(1), 'bof');
-        % Skip the file to the beginning of the time requsted, if not 0
+        % Skip the file to the beginning of the time requested, if not 0
         fseek(FID, (StartPacket - 1) * 2 * ChannelCount, 'cof');
         % Skip the file to the first channel to read
         fseek(FID, (find(NSx.MetaTags.ChannelID == min(userRequestedChannels))-1) * 2, 'cof');        
