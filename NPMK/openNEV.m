@@ -547,7 +547,9 @@ for ii=1:Trackers.countExtHeader
             return;
     end
 end
-NEV.MetaTags.ChannelID = [NEV.ElectrodesInfo.ElectrodeID];
+if isfield(NEV.ElectrodesInfo, 'ElectrodeID')
+    NEV.MetaTags.ChannelID = [NEV.ElectrodesInfo.ElectrodeID];
+end
 clear ExtendedHeader PacketID ii;
 
 %% Recording after ExtendedHeader file position and calculating Data Length
