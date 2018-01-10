@@ -379,7 +379,7 @@ NPMK Version 2.8.2.0: 5 May 2014
 %   - Fixed a crash in case there is no Internet connection.
 %
 
-***** NPMK Version 4.5.3.0 :XXXXXXXXXXX *****
+***** NPMK Version 4.5.3.0 :January 10, 2018 *****
 
 % openNEV 5.4.0.1: January 10, 2018
 %   - Fixed a NeuroMotive bug when AllMarkers was being recorded.
@@ -387,4 +387,4 @@ NPMK Version 2.8.2.0: 5 May 2014
 % NPMKverChecker 1.0.2.0: January 10, 2018
 %   - Added a clickable URL to the prompt.
 
-LATEST:4.5.2.0
+LATEST:4.5.3.0
