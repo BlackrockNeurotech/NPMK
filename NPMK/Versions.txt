@@ -384,4 +384,4 @@ NPMK Version 2.8.2.0: 5 May 2014
 % openNEV 5.4.0.1: January 10, 2018
 %   - Fixed a NeuroMotive bug when AllMarkers was being recorded.
 
-LATEST:4.5.3.0
+LATEST:4.5.2.0
