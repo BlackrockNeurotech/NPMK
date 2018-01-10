@@ -203,6 +203,9 @@ function varargout = openNEV(varargin)
 %   - Checks to see if there's a newer version of NPMK is available.
 %   - Properly reads the comment colors.
 %
+% 5.4.0.1: January 10, 2018
+%   - Fixed a NeuroMotive bug when AllMarkers was being recorded.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Check for the latest version fo NPMK
@@ -735,8 +738,12 @@ if strcmpi(Flags.ReadData, 'read')
                 for IDX = 1:size(NEV.ObjTrackInfo,2)
                     emptyChar = find(NEV.ObjTrackInfo(IDX).TrackableName == 0, 1);
                     NEV.ObjTrackInfo(IDX).TrackableName(emptyChar:end) = [];
-                    if isnan(str2double(NEV.ObjTrackInfo(IDX).TrackableName(emptyChar-1)))
-                        if ~strcmpi(NEV.ObjTrackInfo(IDX-1).TrackableName(1:3), NEV.ObjTrackInfo(IDX).TrackableName(1:3))
+                    if ~(contains(NEV.ObjTrackInfo(IDX).TrackableName, '1') || ...
+                        contains(NEV.ObjTrackInfo(IDX).TrackableName, '2') || ...
+                        contains(NEV.ObjTrackInfo(IDX).TrackableName, '3') || ...
+                        contains(NEV.ObjTrackInfo(IDX).TrackableName, '4'))
+                        nameLength = min(length(NEV.ObjTrackInfo(IDX-1).TrackableName(1:end-1)), length(NEV.ObjTrackInfo(IDX).TrackableName(1:end-1)));
+                        if ~strcmpi(NEV.ObjTrackInfo(IDX-1).TrackableName(1:nameLength-1), NEV.ObjTrackInfo(IDX).TrackableName(1:nameLength-1))
                             objectIndex = 1;
                         else
                             objectIndex = objectIndex + 1;
