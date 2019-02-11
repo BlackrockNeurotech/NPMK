@@ -821,7 +821,7 @@ channelIDToDelete = setdiff(1:ChannelCount, userRequestedChanRow);
 NSx.MetaTags.ChannelID(channelIDToDelete) = [];
 
 %% Adjusting the file for a non-0 timestamp start
-if ~NSx.RawData.PausedFile & StartPacket == 1
+if ~NSx.RawData.PausedFile && StartPacket == 1
     if length(NSx.MetaTags.Timestamp) > 1
         cellIDX = 1; % only do this for the first cell segment and not modify the subsequent segments
         if strcmpi(ReadData, 'read')
@@ -830,10 +830,7 @@ if ~NSx.RawData.PausedFile & StartPacket == 1
         NSx.MetaTags.DataPoints(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) + NSx.MetaTags.Timestamp(cellIDX);
         NSx.MetaTags.DataDurationSec(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) / NSx.MetaTags.SamplingFreq;
         NSx.MetaTags.Timestamp(cellIDX) = 0;
-    elseif strcmpi(ReadData, 'read')
-        if NSx.MetaTags.Timestamp > 10*NSx.MetaTags.SamplingFreq % if delay is more than 10 seconds, treat as 0
-            NSx.MetaTags.Timestamp = 0;
-        end
+    elseif strcmpi(ReadData, 'read') && NSx.MetaTags.Timestamp < 10*NSx.MetaTags.SamplingFreq % 0-pad delay if TimeStamp < 10 s
         NSx.Data = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp / skipFactor)) NSx.Data];
         NSx.MetaTags.DataPoints = size(NSx.Data,2);
         NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints / NSx.MetaTags.SamplingFreq;
