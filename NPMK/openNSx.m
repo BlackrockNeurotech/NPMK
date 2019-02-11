@@ -831,6 +831,9 @@ if ~NSx.RawData.PausedFile & StartPacket == 1
         NSx.MetaTags.DataDurationSec(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) / NSx.MetaTags.SamplingFreq;
         NSx.MetaTags.Timestamp(cellIDX) = 0;
     elseif strcmpi(ReadData, 'read')
+        if NSx.MetaTags.Timestamp > 10*NSx.MetaTags.SamplingFreq % if delay is more than 10 seconds, treat as 0
+            NSx.MetaTags.Timestamp = 0;
+        end
         NSx.Data = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp / skipFactor)) NSx.Data];
         NSx.MetaTags.DataPoints = size(NSx.Data,2);
         NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints / NSx.MetaTags.SamplingFreq;
