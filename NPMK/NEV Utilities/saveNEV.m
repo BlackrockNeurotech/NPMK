@@ -56,6 +56,18 @@ function saveNEV(NEV, varargin)
 %   - Added the 'noreport' key to supress statuses and warnings.
 %   - Improved error checking for input arguments.
 %
+% 1.2.0.0: Nick Halper - 19/8/29
+%   - Allows saveNEV to dynamically determine header offset and total
+%   number of extended headers instead of relying on info in MetaTags/Raw
+%   Data of NEV structure.
+%   - Fixed a bug where choosing to overwrite would crash the script
+%   - Fixed an issue where bank letters were not being written correctly, writing
+%   blank values
+%   - Modified the script to work with 256 channel files
+%
+% 1.3.0.0: Stephen hou - 19/8/30
+%   - Implemented saving of files that contain NeuroMotive/tracking data
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Verify FilePath and establish overwrite paramaters
@@ -92,11 +104,24 @@ if reportFlag
 end
 
 % Validating and opening the writable file
-if exist('FilePath', 'file')
-	FileExistResponse = input('The file already exists. Overwrite? (Y/N)','s');
-    if ~strcmpi(FileExistResponse, 'y')
-        return;
-    end
+if exist(FilePath)
+    
+        if exist(FilePath)
+         
+                disp('File already exists!');
+                OverwritePrompt = input('Would you like to overwrite? (Y/N)','s');
+                if strcmpi(OverwritePrompt,'y')
+                    Overwrite = 1;
+                    delete(FilePath);
+                else
+                    while exist(FilePath)
+                        ExistCount = ExistCount + 1;
+                        FilePath = fullfile(NEV.MetaTags.FilePath,[NEV.MetaTags.Filename '-Aligned-',num2str(ExistCount),NEV.MetaTags.FileExt]);
+                    end
+                    
+                end
+            
+        end
 end
 
 FileID = fopen(FilePath, 'w', 'ieee-le');
@@ -127,7 +152,7 @@ fwrite(FileID,NEV.MetaTags.Comment);
 ExtendedHeaderBytes = NEV.MetaTags.HeaderOffset-ftell(FileID)+4;
 fwrite(FileID,ExtendedHeaderBytes/32,'uint32');
 
-%EndOfBasicHeader = ftell(FileID)
+EndOfBasicHeader = ftell(FileID);
 
 %%
 % Write the extended header into the file. 
@@ -179,6 +204,12 @@ if isfield(NEV,'ElectrodesInfo')
                     fwrite(FileID,5,'uint8');
                 case 'F'
                     fwrite(FileID,6,'uint8');
+                case 'G'
+                    fwrite(FileID,7,'uint8');
+                case 'H'
+                    fwrite(FileID,8,'uint8');
+                case 'I'
+                    fwrite(FileID,9,'uint8');
             end
         
             fwrite(FileID,NEV.ElectrodesInfo(IDX).ConnectorPin,'uint8');
@@ -240,17 +271,17 @@ end
 %Digital inputs
 if isfield(NEV,'IOLabels')
     if reportFlag; disp('Writing IOLabels Header...'); end
-    for IDX = [1,2]
-    Before = ftell(FileID);
-    fwrite(FileID,'DIGLABEL');
-    fwrite(FileID,NEV.IOLabels{IDX},'uint8');
-    fwrite(FileID, IDX - 1, 'uint8');
-    fwrite(FileID, zeros(7,1),'uint8');
-    After = ftell(FileID);
-    if After-Before ~= 32
-       disp('Broken IO Labels');
-    end
-    end
+        for IDX = 1:length(NEV.IOLabels)
+            Before = ftell(FileID);
+            fwrite(FileID,'DIGLABEL');
+            fwrite(FileID,'Serial1XXXXXXXXX','uint8');
+            fwrite(FileID, IDX - 1, 'uint8');
+            fwrite(FileID, zeros(7,1),'uint8');
+            After = ftell(FileID);
+            if After-Before ~= 32
+               disp('Broken IO Labels');
+            end
+        end
 end
     
 %Video Packets
@@ -281,13 +312,10 @@ if isfield(NEV,'ObjTrackInfo')
     for IDX = 1:length(NEV.ObjTrackInfo)
     Before = ftell(FileID);
     fwrite(FileID,'TRACKOBJ');
-    %ftell(FileID)-Before
     fwrite(FileID, NEV.ObjTrackInfo(IDX).TrackableType,'uint16');
-    %ftell(FileID)-Before
     fwrite(FileID, NEV.ObjTrackInfo(IDX).TrackableID,'uint32');%This is an error and should be two different uint16 values, but we can read it back into file this way.
-    %ftell(FileID)-Before
+    NEV.ObjTrackInfo(IDX).TrackableName = pad(NEV.ObjTrackInfo(IDX).TrackableName,16,'X'); 
     fwrite(FileID, NEV.ObjTrackInfo(IDX).TrackableName);
-    %ftell(FileID)-Before
     fwrite(FileID, zeros(2,1),'uint8');
     After = ftell(FileID);
     if After-Before ~= 32
@@ -300,10 +328,19 @@ if isfield(NEV,'Rabbits')
     %Fill in the details about Rabbits at some point in the future.
 end
 
-%EndOfExtendedHeader = ftell(FileID)
+EndOfExtendedHeader = ftell(FileID);
+
+%% Edit the Basic Header to Account for Number of Extended Headers
+
+fseek(FileID,12,'bof');
+fwrite(FileID,EndOfExtendedHeader,'uint32');
+fseek(FileID,322,'bof');
+fwrite(FileID,(EndOfExtendedHeader-EndOfBasicHeader)/32,'uint32');
+fseek(FileID,EndOfExtendedHeader,'bof');
+
 
 %%
-% Write Data GOOD UP TO THIS POINT
+% Write Data
 BytesInPackets = NEV.MetaTags.PacketBytes;
 Broken = 0;
 
@@ -407,6 +444,39 @@ if ~isempty(NEV.Data.Comments.TimeStamp)
     end
 end
 
+if ~isempty(NEV.Data.TrackingEvents.TimeStamp)
+    if reportFlag; disp('Writing Tracking Event Data'); end
+    for IDX = 1:length(NEV.Data.TrackingEvents.TimeStamp)
+        Before = ftell(FileID);
+        fwrite(FileID, NEV.Data.TrackingEvents.TimeStamp(IDX),'uint32');
+        fwrite(FileID, 65535,'uint16');
+        fwrite(FileID, 255, 'uint8');
+        %fwrite(FileID,  2, 'uint8');
+        fwrite(FileID, 0, 'uint8'); %placeholder until I ask hyrum what the Nreuromotive flag is
+        fwrite(FileID, int2str(NEV.Data.TrackingEvents.ROINum(IDX)),'uint8');
+        %byte 1 is ROI #, byte 2 is enter or exit -- is it 1 and 2?
+        if strcmp(NEV.Data.TrackingEvents.Event(IDX),'Enter')
+            fwrite(FileID, 1,'uint8');
+        elseif strcmp(NEV.Data.TrackingEvents.Event(IDX),'Exit')
+            fwrite(FileID, 2,'uint8');
+        end
+        fwrite(FileID, zeros(2,1), 'uint8');
+        fwrite(FileID, strcat(NEV.Data.TrackingEvents.ROIName{IDX},':',int2str(NEV.Data.TrackingEvents.ROINum(IDX)),':',NEV.Data.TrackingEvents.Event{IDX},':',int2str(NEV.Data.TrackingEvents.Frame(IDX)),':','placeholder until i figure out wtf this is'));
+        fwrite(FileID, zeros(BytesInPackets-(ftell(FileID)-Before),1),'uint8');
+        After = ftell(FileID);
+        if After-Before ~= BytesInPackets
+            Broken = 1;
+            %After-Before
+            %CurrentPacket = IDX
+            %TotalPackets = length(NEV.Data.Comments.TimeStamp)
+        end
+    end
+    if Broken == 1
+        disp('Tracking Event Packet Corrupted')
+        Broken = 0;
+    end
+end
+
 if ~isempty(NEV.Data.VideoSync.TimeStamp)
     if reportFlag; disp('Writing VideoSync Data...'); end
     for IDX = 1:length(NEV.Data.VideoSync.TimeStamp)
@@ -446,20 +516,50 @@ if ~isempty(NEV.Data.Tracking)
         for TrackingField = 1:numel(TrackingFieldNames)
             for IDX = 1:length(NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).TimeStamp)
                 Before = ftell(FileID);
-                fwrite(FileID, NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).TimeStamp(IDX),'uint32');
-                %ftell(FileID)-Before
-                fwrite(FileID, 65533, 'uint16');
-                %ftell(FileID)-Before
-                fwrite(FileID, NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).ParentID(IDX),'uint16');
-                %ftell(FileID)-Before
-                fwrite(FileID, NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).NodeCount(IDX),'uint16');
-                %ftell(FileID)-Before
-                fwrite(FileID, NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).MarkerCount(IDX),'uint16');
-                %ftell(FileID)-Before
-                fwrite(FileID, NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).MarkerCoordinates(IDX).X,'uint16');
-                %ftell(FileID)-Before
-                fwrite(FileID, NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).MarkerCoordinates(IDX).Y,'uint16');
-                %ftell(FileID)-Before
+                if NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).MarkerCount == 0
+                    
+                    fwrite(FileID, NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).TimeStamp(IDX),'uint32');
+                    %ftell(FileID)-Before
+                    fwrite(FileID, 65533, 'uint16');
+                    %ftell(FileID)-Before
+                    fwrite(FileID, NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).ParentID(IDX),'uint16');
+                    %ftell(FileID)-Before
+                    fwrite(FileID, TrackingField-1,'uint16'); %Node ID
+                    %ftell(FileID)-Before                    
+                    fwrite(FileID, NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).NodeCount(IDX),'uint16');
+                    %ftell(FileID)-Before
+                    fwrite(FileID, NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).MarkerCount(IDX),'uint16');
+                    %ftell(FileID)-Before
+                    fwrite(FileID, zeros(2,1),'uint8');
+                    %ftell(FileID)-Before
+                    fwrite(FileID, zeros(BytesInPackets - 16,1),'uint8');
+      
+                else
+                    fwrite(FileID, NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).TimeStamp(IDX),'uint32');
+                    %ftell(FileID)-Before
+                    fwrite(FileID, 65533, 'uint16');
+                    %ftell(FileID)-Before
+                    fwrite(FileID, NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).ParentID(IDX),'uint16');
+                    %ftell(FileID)-Before
+                    fwrite(FileID, TrackingField-1,'uint16'); %Node ID
+                    %ftell(FileID)-Before
+                    fwrite(FileID, NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).NodeCount(IDX),'uint16');
+                    %ftell(FileID)-Before
+                    fwrite(FileID, NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).MarkerCount(IDX),'uint16');
+                    %ftell(FileID)-Before
+                    MarkerCoordinatesBytes = length(NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).MarkerCoordinates(IDX).X);
+                    fwrite(FileID, NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).MarkerCoordinates(IDX).X,'uint16');
+                    %ftell(FileID)-Before
+                    fwrite(FileID, NEV.Data.Tracking.(TrackingFieldNames{TrackingField}).MarkerCoordinates(IDX).Y,'uint16');
+
+                    %ftell(FileID)-Before
+                    if MarkerCoordinatesBytes == 1
+                        fwrite(FileID, zeros(BytesInPackets - 14-MarkerCoordinatesBytes*4,1),'uint8');
+                    else
+                        fwrite(FileID, zeros(BytesInPackets - 14-MarkerCoordinatesBytes*4,1),'uint8');
+                    end
+                end
+                    
                 After = ftell(FileID);
                 if After-Before ~= BytesInPackets
                     Broken = 1;
@@ -471,6 +571,7 @@ if ~isempty(NEV.Data.Tracking)
             end
             if Broken == 1
                 disp('Tracking Packet Corrupted')
+                disp(After - Before)
                 Broken = 0;
             end
         end
@@ -542,3 +643,4 @@ clear SpikeLength
 clear Value
 
 fclose('all');
+
