@@ -206,6 +206,10 @@ function varargout = openNEV(varargin)
 % 5.4.0.1: January 10, 2018
 %   - Fixed a NeuroMotive bug when AllMarkers was being recorded.
 %
+% 5.4.1.0: April 25, 2018
+%   - Now all comments open in order.
+%   - Fixed a bug with path of file if both NEV and MAT were moved to a new
+%     location.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Check for the latest version fo NPMK
@@ -385,6 +389,7 @@ matPath = [fileFullPath(1:end-4) '.mat'];
 if exist(matPath, 'file') == 2 && strcmpi(Flags.NoMAT, 'yesmat') && strcmpi(Flags.WarningStat, 'warning')
     disp('MAT file corresponding to selected NEV file already exists. Loading MAT instead...');
     load(matPath);
+    NEV.MetaTags.FilePath = fileFullPath;    
     if isempty(NEV.Data.Spikes.Waveform) && strcmpi(Flags.ReadData, 'read') && strcmpi(Flags.WarningStat, 'warning')
         disp('The MAT file does not contain waveforms. Loading NEV instead...');
     else
@@ -668,13 +673,16 @@ if strcmpi(Flags.ReadData, 'read')
         tRawData  = fread(FID, [Trackers.countPacketBytes Trackers.readPackets(2)], ...
             [num2str(Trackers.countPacketBytes) '*uint8=>uint8'], 0);
         if ~isempty(commentIndices)
-            NEV.Data.Comments.TimeStamp = Timestamp(commentIndices);
+            [NEV.Data.Comments.TimeStamp, orderOfTS] = sort(Timestamp(commentIndices));
             NEV.Data.Comments.TimeStampSec = double(NEV.Data.Comments.TimeStamp)/double(NEV.MetaTags.TimeRes);
-            NEV.Data.Comments.CharSet = tRawData(7, commentIndices);
+            tempCharSet = tRawData(7, commentIndices);
+            NEV.Data.Comments.CharSet = tempCharSet(orderOfTS); clear tempCharSet;
             colorFlag = tRawData(8, commentIndices);
             NEV.Data.Comments.TimeStampStarted = tRawData(9:12, commentIndices);
-            NEV.Data.Comments.TimeStampStarted = typecast(NEV.Data.Comments.TimeStampStarted(:), 'uint32').';
-            NEV.Data.Comments.Text  = char(tRawData(13:Trackers.countPacketBytes, commentIndices).');
+            tempTimeStampStarted = typecast(NEV.Data.Comments.TimeStampStarted(:), 'uint32').';
+            NEV.Data.Comments.TimeStampStarted = tempTimeStampStarted(orderOfTS); clear tempTimeStampStarted;
+            tempText = char(tRawData(13:Trackers.countPacketBytes, commentIndices).');
+            NEV.Data.Comments.Text  = tempText(orderOfTS,:); clear tempText;
             
             % Transferring NeuroMotive Events to its own structure
             neuroMotiveEvents = find(NEV.Data.Comments.CharSet == 255);
@@ -753,6 +761,9 @@ if strcmpi(Flags.ReadData, 'read')
                     indicesOfEvent = find(tmp.NodeID == IDX-1);
                     if ~isempty(indicesOfEvent)
                         NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStamp = tmp.TimeStamp(indicesOfEvent);
+                        if tmp.TimeStamp(indicesOfEvent) == 14982
+                            disp('Aha!');
+                        end
                         NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStampSec = tmp.TimeStampSec(indicesOfEvent);
                         NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).ParentID =    tmp.ParentID(indicesOfEvent);
                         NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).NodeCount =   tmp.NodeCount(indicesOfEvent);
