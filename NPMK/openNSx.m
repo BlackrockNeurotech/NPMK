@@ -246,7 +246,7 @@ NSx.MetaTags = struct('FileTypeID',[],'SamplingLabel',[],'ChannelCount',[],'Samp
                       'FileExt', []);
 
                                     
-NSx.MetaTags.openNSxver = '6.4.3.0';
+NSx.MetaTags.openNSxver = '6.4.3.1';
                   
 %% Check for the latest version fo NPMK
 NPMKverChecker
