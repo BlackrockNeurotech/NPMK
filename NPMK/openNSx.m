@@ -233,6 +233,9 @@ function varargout = openNSx(varargin)
 %     script twice.
 %   - Checks to see if there's a newer version of NPMK is available.
 %
+% 6.4.3.1: January 24, 2020
+%   - Changed file opening access from r+ to r.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -438,7 +441,7 @@ if strcmp(Report, 'report')
 end
 
 %% Reading Basic Header from file into NSx structure.
-FID = fopen([path fname], 'r+', 'ieee-le');
+FID = fopen([path fname], 'r', 'ieee-le');	
 
 fileFullPath = fullfile(path, fname);
 [NSx.MetaTags.FilePath, NSx.MetaTags.Filename, NSx.MetaTags.FileExt] = fileparts(fileFullPath);
