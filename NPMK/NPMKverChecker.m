@@ -28,12 +28,17 @@ function NPMKverChecker()
 %   - Only checks for a new version once a week instead of every time.
 %
 
+%% Variables and constants
 gitHubURL = 'https://github.com/BlackrockMicrosystems/NPMK/releases/latest';
+
+%% Find full path of NPMKverChecker.m
+fileFullPath = which('NPMKverChecker.m');
+fileFullPath = [fileFullPath(1:end-1) 'dat'];
 
 %% Check for the latest version fo NPMK
 try
-    if exist('NPMKverChecker.dat', 'file') == 2
-        load('NPMKverChecker.dat', '-mat');
+    if exist(fileFullPath, 'file') == 2
+        load(fileFullPath, '-mat');
         if floor(abs(now - datenum(checkeddate - days(1)))) > 8 %#ok<NODEF>
             disp('Checking for a new version of NPMK...');
             checkver = 1;
@@ -55,7 +60,7 @@ try
             fprintf('Please visit <a href="%s">GitHub NPMK Page</a> to get the latest version.\n', gitHubURL)
         end
         checkeddate = datetime;
-        save('NPMKverChecker.dat', 'checkeddate');
+        save(fileFullPath, 'checkeddate');
     end
 catch
 end
