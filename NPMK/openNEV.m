@@ -213,6 +213,7 @@ function varargout = openNEV(varargin)
 %
 % 6.0.0.0: January 27, 2020
 %   - Added support for 64-bit timestamps in NEV and NSx.
+%   - Removed dependency on MATLAB R2016b by removing function 'contains'.
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -395,7 +396,7 @@ if exist(matPath, 'file') == 2 && strcmpi(Flags.NoMAT, 'yesmat') && strcmpi(Flag
     load(matPath);
     NEV.MetaTags.FilePath = fileFullPath;    
     if isempty(NEV.Data.Spikes.Waveform) && strcmpi(Flags.ReadData, 'read') && strcmpi(Flags.WarningStat, 'warning')
-        disp('The MAT file does not contain waveforms. Loading NEV instead...');
+        disp('The MAT file does not waveforms. Loading NEV instead...');
     else
         NEV = killUnwantedChannels(NEV, Flags.selChannels);
         if ~nargout
@@ -764,10 +765,10 @@ if strcmpi(Flags.ReadData, 'read')
                 for IDX = 1:size(NEV.ObjTrackInfo,2)
                     emptyChar = find(NEV.ObjTrackInfo(IDX).TrackableName == 0, 1);
                     NEV.ObjTrackInfo(IDX).TrackableName(emptyChar:end) = [];
-                    if ~(contains(NEV.ObjTrackInfo(IDX).TrackableName, '1') || ...
-                        contains(NEV.ObjTrackInfo(IDX).TrackableName, '2') || ...
-                        contains(NEV.ObjTrackInfo(IDX).TrackableName, '3') || ...
-                        contains(NEV.ObjTrackInfo(IDX).TrackableName, '4'))
+                    if ~(~isempty(strfind(NEV.ObjTrackInfo(IDX).TrackableName, '1')) || ...
+                        ~isempty(strfind(NEV.ObjTrackInfo(IDX).TrackableName, '2')) || ...
+                        ~isempty(strfind(NEV.ObjTrackInfo(IDX).TrackableName, '3')) || ...
+                        ~isempty(strfind(NEV.ObjTrackInfo(IDX).TrackableName, '4')))
                         nameLength = min(length(NEV.ObjTrackInfo(IDX-1).TrackableName(1:end-1)), length(NEV.ObjTrackInfo(IDX).TrackableName(1:end-1)));
                         if ~strcmpi(NEV.ObjTrackInfo(IDX-1).TrackableName(1:nameLength-1), NEV.ObjTrackInfo(IDX).TrackableName(1:nameLength-1))
                             objectIndex = 1;
@@ -779,9 +780,6 @@ if strcmpi(Flags.ReadData, 'read')
                     indicesOfEvent = find(tmp.NodeID == IDX-1);
                     if ~isempty(indicesOfEvent)
                         NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStamp = tmp.TimeStamp(indicesOfEvent);
-                        if tmp.TimeStamp(indicesOfEvent) == 14982
-                            disp('Aha!');
-                        end
                         NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStampSec = tmp.TimeStampSec(indicesOfEvent);
                         NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).ParentID =    tmp.ParentID(indicesOfEvent);
                         NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).NodeCount =   tmp.NodeCount(indicesOfEvent);
