@@ -387,4 +387,16 @@ NPMK Version 2.8.2.0: 5 May 2014
 % NPMKverChecker 1.0.2.0: January 10, 2018
 %   - Added a clickable URL to the prompt.
 
-LATEST:4.5.3.0
+***** NPMK Version 5.0.0.0 :January 27, 2020 *****
+
+% openNSx 7.0.0.0: January 27, 2020
+%   - Added support for 64-bit timestamps in NEV and NSx.
+%
+% openNEV 6.0.0.0: January 27, 2020
+%   - Added support for 64-bit timestamps in NEV and NSx.
+%   - Removed dependency on MATLAB R2016b by removing function 'contains'.
+%
+% NPMKverChecker 1.1.0.0: January 27, 2020
+%   - Only checks for a new version once a week instead of every time.
+%
+LATEST:5.0.0.0

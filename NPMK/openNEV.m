@@ -3,7 +3,7 @@ function varargout = openNEV(varargin)
 % openNEV
 %
 % Opens an .nev file for reading, returns all file information in a NEV
-% structure. Works with File Spec 2.1 & 2.2 & 2.3.
+% structure. Works with File Spec 2.1 & 2.2 & 2.3 & 3.0.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 % Use OUTPUT = openNEV(fname, 'noread', 'report', 'noparse', 'nowarning', 
 %                             'nosave', 'nomat', 'uV', 'overwrite', 'direct').
@@ -206,6 +206,15 @@ function varargout = openNEV(varargin)
 % 5.4.0.1: January 10, 2018
 %   - Fixed a NeuroMotive bug when AllMarkers was being recorded.
 %
+% 5.4.1.0: April 25, 2018
+%   - Now all comments open in order.
+%   - Fixed a bug with path of file if both NEV and MAT were moved to a new
+%     location.
+%
+% 6.0.0.0: January 27, 2020
+%   - Added support for 64-bit timestamps in NEV and NSx.
+%   - Removed dependency on MATLAB R2016b by removing function 'contains'.
+% 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Check for the latest version fo NPMK
@@ -385,8 +394,9 @@ matPath = [fileFullPath(1:end-4) '.mat'];
 if exist(matPath, 'file') == 2 && strcmpi(Flags.NoMAT, 'yesmat') && strcmpi(Flags.WarningStat, 'warning')
     disp('MAT file corresponding to selected NEV file already exists. Loading MAT instead...');
     load(matPath);
+    NEV.MetaTags.FilePath = fileFullPath;    
     if isempty(NEV.Data.Spikes.Waveform) && strcmpi(Flags.ReadData, 'read') && strcmpi(Flags.WarningStat, 'warning')
-        disp('The MAT file does not contain waveforms. Loading NEV instead...');
+        disp('The MAT file does not waveforms. Loading NEV instead...');
     else
         NEV = killUnwantedChannels(NEV, Flags.selChannels);
         if ~nargout
@@ -420,14 +430,14 @@ NEV.MetaTags.Comment      = char(BasicHeader(77:332)');
 Trackers.countExtHeader   = typecast(BasicHeader(333:336), 'uint32');
 clear BasicHeader;
 
-if strcmpi(NEV.MetaTags.FileTypeID, 'NEURALEV')
+if or(strcmpi(NEV.MetaTags.FileTypeID, 'NEURALEV'), strcmpi(NEV.MetaTags.FileTypeID, 'BREVENTS'))
     if exist([fileFullPath(1:end-8) '.sif'], 'file') == 2
         METATAGS = textread([fileFullPath(1:end-8) '.sif'], '%s');
         NEV.MetaTags.Subject      = METATAGS{3}(5:end-5);
         NEV.MetaTags.Experimenter = [METATAGS{5}(8:end-8) ' ' METATAGS{6}(7:end-7)];
     end
 end
-if ~any(strcmpi(NEV.MetaTags.FileSpec, {'2.1', '2.2', '2.3'}))
+if ~any(strcmpi(NEV.MetaTags.FileSpec, {'2.1', '2.2', '2.3', '3.0'}))
     disp('Unknown filespec. Cannot open file.');
     fclose FID;
     clear variables;
@@ -570,9 +580,17 @@ tempClassOrReason = [];
 tempDigiVals = [];
 if NEV.MetaTags.PacketCount ~= 0
     fseek(FID, Trackers.fExtendedHeader, 'bof');
-    tRawData  = fread(FID, [10 Trackers.countDataPacket], '10*uint8=>uint8', Trackers.countPacketBytes - 10);
-    Timestamp = tRawData(1:4,:);
-    Timestamp = typecast(Timestamp(:), 'uint32').' + syncShift;
+    if strcmpi(NEV.MetaTags.FileTypeID, 'NEURALEV')
+        tRawData  = fread(FID, [10 Trackers.countDataPacket], '10*uint8=>uint8', Trackers.countPacketBytes - 10);
+        Timestamp = tRawData(1:4,:);
+        Timestamp = typecast(Timestamp(:), 'uint32').' + syncShift;
+        timeStampBytes = 4;
+    elseif strcmpi(NEV.MetaTags.FileTypeID, 'BREVENTS')
+        tRawData  = fread(FID, [14 Trackers.countDataPacket], '14*uint8=>uint8', Trackers.countPacketBytes - 14);
+        Timestamp = tRawData(1:8,:);
+        Timestamp = typecast(Timestamp(:), 'uint64').' + syncShift;
+        timeStampBytes = 8;
+    end
 
     %% Calculate the number of packets that need to be read based on the time input parameters
     if ~exist('readTime', 'var')
@@ -608,15 +626,14 @@ if NEV.MetaTags.PacketCount ~= 0
         end
         clear tmp, tempReadPackets;
     end
-   
-    PacketIDs = tRawData(5:6,Trackers.readPackets(1):Trackers.readPackets(2));
+    PacketIDs = tRawData(timeStampBytes+1:timeStampBytes+2,Trackers.readPackets(1):Trackers.readPackets(2));
     PacketIDs = typecast(PacketIDs(:), 'uint16').';
-    tempClassOrReason = uint8(tRawData(7,Trackers.readPackets(1):Trackers.readPackets(2)));
+    tempClassOrReason = uint8(tRawData(timeStampBytes+3,Trackers.readPackets(1):Trackers.readPackets(2)));
     if strcmpi(Flags.digIOBits, '16bits')
-        tempDigiVals      = tRawData(9:10,Trackers.readPackets(1):Trackers.readPackets(2));
+        tempDigiVals      = tRawData(timeStampBytes+5:timeStampBytes+6,Trackers.readPackets(1):Trackers.readPackets(2));
         tempDigiVals      = typecast(tempDigiVals(:), 'uint16');
     else
-        tempDigiVals      = uint16(tRawData(9,Trackers.readPackets(1):Trackers.readPackets(2)));
+        tempDigiVals      = uint16(tRawData(timeStampBytes+5,Trackers.readPackets(1):Trackers.readPackets(2)));
     end
     clear tRawData;
 else
@@ -630,7 +647,10 @@ commentPacketID = 65535;
 videoSyncPacketID = 65534;
 trackingPacketID = 65533;
 patientTrigPacketID = 65532;
-reconfigPacketID = 65531;
+logEventPacketID = 65531;
+reconfigPacketID = 65530;
+recStartPacketID = 65529;
+
 
 %% Parse read digital data. Please refer to help to learn about the proper
 % formatting if the data.
@@ -640,7 +660,9 @@ commentIndices             = find(PacketIDs == commentPacketID);
 videoSyncPacketIDIndices   = find(PacketIDs == videoSyncPacketID);
 trackingPacketIDIndices    = find(PacketIDs == trackingPacketID);
 patientTrigPacketIDIndices = find(PacketIDs == patientTrigPacketID);
+logEventPacketIDIndices    = find(PacketIDs == logEventPacketID);
 reconfigPacketIDIndices    = find(PacketIDs == reconfigPacketID);
+recStartPacketIDIndices    = find(PacketIDs == recStartPacketID);
 clear digserPacketID neuralIndicesPacketIDBounds commentPacketID ...
       videoSyncPacketID trackingPacketID patientTrigPacketID reconfigPacketID;
 digserTimestamp            = Timestamp(digserIndices);
@@ -660,7 +682,9 @@ if strcmpi(Flags.ReadData, 'read')
                                   videoSyncPacketIDIndices, ...
                                   trackingPacketIDIndices, ...
                                   patientTrigPacketIDIndices, ...
-                                  reconfigPacketIDIndices];
+                                  logEventPacketIDIndices,...
+                                  reconfigPacketIDIndices,...
+                                  recStartPacketIDIndices];
       
     if ~isempty(allExtraDataPacketIndices) % if there is any extra packets
         fseek(FID, Trackers.fExtendedHeader, 'bof');
@@ -668,13 +692,16 @@ if strcmpi(Flags.ReadData, 'read')
         tRawData  = fread(FID, [Trackers.countPacketBytes Trackers.readPackets(2)], ...
             [num2str(Trackers.countPacketBytes) '*uint8=>uint8'], 0);
         if ~isempty(commentIndices)
-            NEV.Data.Comments.TimeStamp = Timestamp(commentIndices);
+            [NEV.Data.Comments.TimeStamp, orderOfTS] = sort(Timestamp(commentIndices));
             NEV.Data.Comments.TimeStampSec = double(NEV.Data.Comments.TimeStamp)/double(NEV.MetaTags.TimeRes);
-            NEV.Data.Comments.CharSet = tRawData(7, commentIndices);
-            colorFlag = tRawData(8, commentIndices);
-            NEV.Data.Comments.TimeStampStarted = tRawData(9:12, commentIndices);
-            NEV.Data.Comments.TimeStampStarted = typecast(NEV.Data.Comments.TimeStampStarted(:), 'uint32').';
-            NEV.Data.Comments.Text  = char(tRawData(13:Trackers.countPacketBytes, commentIndices).');
+            tempCharSet = tRawData(timeStampBytes+3, commentIndices);
+            NEV.Data.Comments.CharSet = tempCharSet(orderOfTS); clear tempCharSet;
+            colorFlag = tRawData(timeStampBytes+4, commentIndices);
+            NEV.Data.Comments.TimeStampStarted = tRawData(timeStampBytes+5:timeStampBytes+8, commentIndices);
+            tempTimeStampStarted = typecast(NEV.Data.Comments.TimeStampStarted(:), 'uint32').';
+            NEV.Data.Comments.TimeStampStarted = tempTimeStampStarted(orderOfTS); clear tempTimeStampStarted;
+            tempText = char(tRawData(timeStampBytes+9:Trackers.countPacketBytes, commentIndices).');
+            NEV.Data.Comments.Text  = tempText(orderOfTS,:); clear tempText;
             
             % Transferring NeuroMotive Events to its own structure
             neuroMotiveEvents = find(NEV.Data.Comments.CharSet == 255);
@@ -707,13 +734,13 @@ if strcmpi(Flags.ReadData, 'read')
         end
         if ~isempty(videoSyncPacketIDIndices)
             NEV.Data.VideoSync.TimeStamp       = Timestamp(videoSyncPacketIDIndices);
-            NEV.Data.VideoSync.FileNumber      = tRawData(7:8, videoSyncPacketIDIndices);
+            NEV.Data.VideoSync.FileNumber      = tRawData(timeStampBytes+3:timeStampBytes+4, videoSyncPacketIDIndices);
             NEV.Data.VideoSync.FileNumber      = typecast(NEV.Data.VideoSync.FileNumber(:), 'uint16').';
-            NEV.Data.VideoSync.FrameNumber     = tRawData(9:12, videoSyncPacketIDIndices);
+            NEV.Data.VideoSync.FrameNumber     = tRawData(timeStampBytes+5:timeStampBytes+8, videoSyncPacketIDIndices);
             NEV.Data.VideoSync.FrameNumber     = typecast(NEV.Data.VideoSync.FrameNumber(:), 'uint32').';
-            NEV.Data.VideoSync.ElapsedTime     = tRawData(13:16, videoSyncPacketIDIndices);
+            NEV.Data.VideoSync.ElapsedTime     = tRawData(timeStampBytes+9:timeStampBytes+12, videoSyncPacketIDIndices);
             NEV.Data.VideoSync.ElapsedTime     = typecast(NEV.Data.VideoSync.ElapsedTime(:), 'uint32').';
-            NEV.Data.VideoSync.SourceID        = tRawData(17:20, videoSyncPacketIDIndices);
+            NEV.Data.VideoSync.SourceID        = tRawData(timeStampBytes+13:timeStampBytes+16, videoSyncPacketIDIndices);
             NEV.Data.VideoSync.SourceID        = typecast(NEV.Data.VideoSync.SourceID(:), 'uint32').';
             clear videoSyncPacketIDIndices;
         end
@@ -722,26 +749,26 @@ if strcmpi(Flags.ReadData, 'read')
             tmp.TimeStampSec  = double(tmp.TimeStamp)/30000;
             % This portion is commented out because it does not contain any
             % information as of yet.
-            tmp.ParentID      = tRawData(7:8, trackingPacketIDIndices);
+            tmp.ParentID      = tRawData(timeStampBytes+3:timeStampBytes+4, trackingPacketIDIndices);
             tmp.ParentID      = typecast(tmp.ParentID(:), 'uint16').';
-            tmp.NodeID        = tRawData(9:10, trackingPacketIDIndices);
+            tmp.NodeID        = tRawData(timeStampBytes+5:timeStampBytes+6, trackingPacketIDIndices);
             tmp.NodeID        = typecast(tmp.NodeID(:), 'uint16').';
-            tmp.NodeCount     = tRawData(11:12, trackingPacketIDIndices);
+            tmp.NodeCount     = tRawData(timeStampBytes+7:timeStampBytes+8, trackingPacketIDIndices);
             tmp.NodeCount     = typecast(tmp.NodeCount(:), 'uint16').';
-            tmp.MarkerCount   = tRawData(13:14, trackingPacketIDIndices);
+            tmp.MarkerCount   = tRawData(timeStampBytes+9:timeStampBytes+10, trackingPacketIDIndices);
             tmp.MarkerCount   = typecast(tmp.MarkerCount(:), 'uint16').';
             
-            tmp.rigidBodyPoints = tRawData(15:NEV.MetaTags.PacketBytes, trackingPacketIDIndices);
+            tmp.rigidBodyPoints = tRawData(timeStampBytes+11:NEV.MetaTags.PacketBytes, trackingPacketIDIndices);
             tmp.rigidBodyPoints = reshape(typecast(tmp.rigidBodyPoints(:), 'uint16'), size(tmp.rigidBodyPoints, 1)/2, size(tmp.rigidBodyPoints, 2));
             
             if (isfield(NEV, 'ObjTrackInfo'))
                 for IDX = 1:size(NEV.ObjTrackInfo,2)
                     emptyChar = find(NEV.ObjTrackInfo(IDX).TrackableName == 0, 1);
                     NEV.ObjTrackInfo(IDX).TrackableName(emptyChar:end) = [];
-                    if ~(contains(NEV.ObjTrackInfo(IDX).TrackableName, '1') || ...
-                        contains(NEV.ObjTrackInfo(IDX).TrackableName, '2') || ...
-                        contains(NEV.ObjTrackInfo(IDX).TrackableName, '3') || ...
-                        contains(NEV.ObjTrackInfo(IDX).TrackableName, '4'))
+                    if ~(~isempty(strfind(NEV.ObjTrackInfo(IDX).TrackableName, '1')) || ...
+                        ~isempty(strfind(NEV.ObjTrackInfo(IDX).TrackableName, '2')) || ...
+                        ~isempty(strfind(NEV.ObjTrackInfo(IDX).TrackableName, '3')) || ...
+                        ~isempty(strfind(NEV.ObjTrackInfo(IDX).TrackableName, '4')))
                         nameLength = min(length(NEV.ObjTrackInfo(IDX-1).TrackableName(1:end-1)), length(NEV.ObjTrackInfo(IDX).TrackableName(1:end-1)));
                         if ~strcmpi(NEV.ObjTrackInfo(IDX-1).TrackableName(1:nameLength-1), NEV.ObjTrackInfo(IDX).TrackableName(1:nameLength-1))
                             objectIndex = 1;
@@ -772,17 +799,26 @@ if strcmpi(Flags.ReadData, 'read')
         end
         if ~isempty(patientTrigPacketIDIndices)
             NEV.Data.PatientTrigger.TimeStamp    = Timestamp(patientTrigPacketIDIndices);
-            NEV.Data.PatientTrigger.TriggerType  = tRawData(7:8, patientTrigPacketIDIndices);
+            NEV.Data.PatientTrigger.TriggerType  = tRawData(timeStampBytes+3:timeStampBytes+4, patientTrigPacketIDIndices);
             NEV.Data.PatientTrigger.TriggerType  = typecast(NEV.Data.PatientTrigger.TriggerType(:), 'uint16').';
             clear patientTrigPacketIDIndices;
         end
         if ~isempty(reconfigPacketIDIndices)
             NEV.Data.Reconfig.TimeStamp     = Timestamp(reconfigPacketIDIndices);
-            NEV.Data.Reconfig.ChangeType    = tRawData(7:8, reconfigPacketIDIndices);
+            NEV.Data.Reconfig.ChangeType    = tRawData(timeStampBytes+3:timeStampBytes+4, reconfigPacketIDIndices);
             NEV.Data.Reconfig.ChangeType    = typecast(NEV.Data.Reconfig.ChangeType(:), 'uint16').';
-            NEV.Data.Reconfig.CompName      = char(tRawData(9:24, reconfigPacketIDIndices));
-            NEV.Data.Reconfig.ConfigChanged = char(tRawData(25:Trackers.countPacketBytes, reconfigPacketIDIndices));
+            NEV.Data.Reconfig.CompName      = char(tRawData(timeStampBytes+5:timeStampBytes+20, reconfigPacketIDIndices));
+            NEV.Data.Reconfig.ConfigChanged = char(tRawData(timeStampBytes+21:Trackers.countPacketBytes, reconfigPacketIDIndices));
             clear reconfigPacketIDIndices;
+        end
+        if ~isempty(logEventPacketIDIndices)
+            NEV.Data.LogEvent.TimeStamp     = Timestamp(logEventPacketIDIndices);
+            tmp.Mode                        = tRawData(timeStampBytes+3:timeStampBytes+4, logEventPacketIDIndices);
+            NEV.Data.LogEvent.Mode          = typecast(tmp.Mode(:), 'uint16').';
+            NEV.Data.LogEvent.Application   = char(tRawData(timeStampBytes+5:timeStampBytes+20, logEventPacketIDIndices).');
+        end
+        if ~isempty(recStartPacketIDIndices)
+            NEV.Data.RecStartTimes.TimeStamp     = Timestamp(recStartPacketIDIndices);
         end
     end % end if ~isempty(allExtraDataPacketIndices)
 
