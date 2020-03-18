@@ -402,4 +402,10 @@ NPMK Version 2.8.2.0: 5 May 2014
 % license.txt February 27, 2020
 %   - Added 3-clause BSD open-source license.
 %
+
+***** NPMK Version 5.x.x.x :January xx, 2020 *****
+
+% settingFileFullPath 1.1.0.0: March 17, 2020
+%   - Updated to support unix file system.
+
 LATEST:5.0.0.0
