@@ -826,8 +826,10 @@ if strcmpi(Flags.ReadData, 'read')
             NEV.Data.LogEvent.Application   = char(tRawData(timeStampBytes+5:timeStampBytes+20, logEventPacketIDIndices).');
         end
         if ~isempty(recEventPacketIDIndices)
-            NEV.Data.RecordingEvents.TimeStamp     = Timestamp(recEventPacketIDIndices);
-            tmp.EventCode                          = tRawData(timeStampBytes+3:timeStampBytes+4, recEventPacketIDIndices);
+            NEV.Data.RecordingEvents.TimeStamp  = Timestamp(recEventPacketIDIndices);
+            tmp.EventCode                       = tRawData(timeStampBytes+3:timeStampBytes+4, recEventPacketIDIndices);
+            NEV.Data.RecordingEvents.EventCode  = typecast(tmp.EventCode(:), 'uint16').';
+
         end
     end % end if ~isempty(allExtraDataPacketIndices)
 
