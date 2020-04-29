@@ -217,15 +217,19 @@ function varargout = openNEV(varargin)
 % 
 % 6.1.0.0: April 16, 2020
 %   - Some bug fixes. (David Kluger)
+%
+% 6.2.0.0: April 29, 2020
+%   - Added ability to read all types of recording event types.
+%
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Check for the latest version fo NPMK
 NPMKverChecker
-NEV.MetaTags.openNEVver = '6.1.0.0';
 
 %% Defining structures
 NEV = struct('MetaTags',[], 'ElectrodesInfo', [], 'Data', []);
+NEV.MetaTags.openNEVver = '6.2.0.0';
 NEV.MetaTags = struct('Subject', [], 'Experimenter', [], 'DateTime', [],...
     'SampleRes',[],'Comment',[],'FileTypeID',[],'Flags',[], 'openNEVver', [], ...
     'DateTimeRaw', [], 'FileSpec', [], 'PacketBytes', [], 'HeaderOffset', [], ...
@@ -653,7 +657,7 @@ trackingPacketID = 65533;
 patientTrigPacketID = 65532;
 logEventPacketID = 65531;
 reconfigPacketID = 65530;
-recStartPacketID = 65529;
+recEventPacketID = 65529;
 
 
 %% Parse read digital data. Please refer to help to learn about the proper
@@ -666,7 +670,7 @@ trackingPacketIDIndices    = find(PacketIDs == trackingPacketID);
 patientTrigPacketIDIndices = find(PacketIDs == patientTrigPacketID);
 logEventPacketIDIndices    = find(PacketIDs == logEventPacketID);
 reconfigPacketIDIndices    = find(PacketIDs == reconfigPacketID);
-recStartPacketIDIndices    = find(PacketIDs == recStartPacketID);
+recEventPacketIDIndices    = find(PacketIDs == recEventPacketID);
 clear digserPacketID neuralIndicesPacketIDBounds commentPacketID ...
       videoSyncPacketID trackingPacketID patientTrigPacketID reconfigPacketID;
 digserTimestamp            = Timestamp(digserIndices);
@@ -688,7 +692,7 @@ if strcmpi(Flags.ReadData, 'read')
                                   patientTrigPacketIDIndices, ...
                                   logEventPacketIDIndices,...
                                   reconfigPacketIDIndices,...
-                                  recStartPacketIDIndices];
+                                  recEventPacketIDIndices];
       
     if ~isempty(allExtraDataPacketIndices) % if there is any extra packets
         fseek(FID, Trackers.fExtendedHeader, 'bof');
@@ -821,8 +825,9 @@ if strcmpi(Flags.ReadData, 'read')
             NEV.Data.LogEvent.Mode          = typecast(tmp.Mode(:), 'uint16').';
             NEV.Data.LogEvent.Application   = char(tRawData(timeStampBytes+5:timeStampBytes+20, logEventPacketIDIndices).');
         end
-        if ~isempty(recStartPacketIDIndices)
-            NEV.Data.RecStartTimes.TimeStamp     = Timestamp(recStartPacketIDIndices);
+        if ~isempty(recEventPacketIDIndices)
+            NEV.Data.RecordingEvents.TimeStamp     = Timestamp(recEventPacketIDIndices);
+            tmp.EventCode                          = tRawData(timeStampBytes+3:timeStampBytes+4, recEventPacketIDIndices);
         end
     end % end if ~isempty(allExtraDataPacketIndices)
 
