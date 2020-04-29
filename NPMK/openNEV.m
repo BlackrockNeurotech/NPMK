@@ -215,10 +215,14 @@ function varargout = openNEV(varargin)
 %   - Added support for 64-bit timestamps in NEV and NSx.
 %   - Removed dependency on MATLAB R2016b by removing function 'contains'.
 % 
+% 6.1.0.0: April 16, 2020
+%   - Some bug fixes. (David Kluger)
+% 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Check for the latest version fo NPMK
 NPMKverChecker
+NEV.MetaTags.openNEVver = '6.1.0.0';
 
 %% Defining structures
 NEV = struct('MetaTags',[], 'ElectrodesInfo', [], 'Data', []);
@@ -825,11 +829,11 @@ if strcmpi(Flags.ReadData, 'read')
     clear Timestamp tRawData count idx;
       
    % now read waveform
-    fseek(FID, Trackers.fExtendedHeader + 8, 'bof'); % Seek to location of spikes
+    fseek(FID, Trackers.fExtendedHeader + 12, 'bof'); % Seek to location of spikes
     fseek(FID, (Trackers.readPackets(1)-1) * Trackers.countPacketBytes, 'cof');
     NEV.Data.Spikes.WaveformUnit = Flags.waveformUnits;
-    NEV.Data.Spikes.Waveform = fread(FID, [(Trackers.countPacketBytes-8)/2 Trackers.readPackets(2)], ...
-        [num2str((Trackers.countPacketBytes-8)/2) '*int16=>int16'], 8);
+    NEV.Data.Spikes.Waveform = fread(FID, [(Trackers.countPacketBytes-12)/2 Trackers.readPackets(2)], ...
+        [num2str((Trackers.countPacketBytes-12)/2) '*int16=>int16'], 12);
     NEV.Data.Spikes.Waveform(:, [digserIndices allExtraDataPacketIndices]) = []; 
 
     clear allExtraDataPacketIndices;
