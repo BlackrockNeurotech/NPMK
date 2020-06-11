@@ -76,7 +76,7 @@ if( fid == -1 ),
 end;
 
 %% Read header incl. version
-head = fread(fid, 16, '*char*1' )';
+head = fread(fid, 16, 'uint8=>char*1' )';
 
 if strcmp(head(1:5), 'cbCCF')
     version = deblank(strtrim(head(6:end))); % Strip possible leading space and trailing nulls

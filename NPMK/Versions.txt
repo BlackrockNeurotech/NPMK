@@ -420,5 +420,10 @@ NPMK Version 2.8.2.0: 5 May 2014
 %   - Fixed an error where N-Trodes with less than 4 members read an extra
 %     1 as the extra non-existent members.
 
+***** NPMK Version 5.2.1.0 :June 11, 2020 *****
 
-LATEST:5.2.0.0
+% openNSx 7.1.1.0: June 11, 2020
+%   - Fixed a bug related to fread and MATLAB 2020a.
+
+
+LATEST:5.2.1.0

@@ -248,6 +248,9 @@ function varargout = openNSx(varargin)
 %     a non-zero start time. (David Kluger)
 %   - Bug fixes and documentation updates (David Kluger)
 %
+% 7.1.1.0: June 11, 2020
+%   - Fixed a bug related to fread and MATLAB 2020a.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -464,10 +467,10 @@ FID = fopen([path fname], 'r', 'ieee-le');
 fileFullPath = fullfile(path, fname);
 [NSx.MetaTags.FilePath, NSx.MetaTags.Filename, NSx.MetaTags.FileExt] = fileparts(fileFullPath);
 
-NSx.MetaTags.FileTypeID   = fread(FID, [1,8]   , '*char');
+NSx.MetaTags.FileTypeID   = fread(FID, [1,8]   , 'uint8=>char');
 if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALSG')
 	NSx.MetaTags.FileSpec      = '2.1';
-    NSx.MetaTags.SamplingLabel = fread(FID, [1,16]  , '*char');
+    NSx.MetaTags.SamplingLabel = fread(FID, [1,16]  , 'uint8=>char');
     NSx.MetaTags.TimeRes       = 30000;
     NSx.MetaTags.SamplingFreq  = NSx.MetaTags.TimeRes / fread(FID, 1 , 'uint32=>double');
     ChannelCount               = double(fread(FID, 1       , 'uint32=>double'));
