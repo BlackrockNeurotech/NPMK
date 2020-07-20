@@ -4,7 +4,7 @@ function varargout = openNSx(varargin)
 % 
 % Opens and reads an NSx file then returns all file information in a NSx
 % structure. Works with File Spec 2.1, 2.2, 2.3, and 3.0.
-% Use OUTPUT = openNSx(fname, 'read', 'report', 'e:xx:xx', 'c:xx:xx', 't:xx:xx', 'mode', 'precision', 'skipfactor').
+% Use OUTPUT = openNSx(fname, 'read', 'report', 'e:xx:xx', 'c:xx:xx', 't:xx:xx', 'mode', 'precision', 'skipfactor', 'nozeropad').
 % 
 % All input arguments are optional. Input arguments can be in any order.
 %
@@ -21,7 +21,7 @@ function varargout = openNSx(varargin)
 %
 %   'e:XX:YY':    User can specify which electrodes need to be read. The
 %                 number of electrodes can be greater than or equal to 1
-%                 and less than or equal to 128. The electrodes can be
+%                 and less than or equal to 256. The electrodes can be
 %                 selected either by specifying a range (e.g. 20:45) or by
 %                 indicating individual electrodes (e.g. 3,6,7,90) or both.
 %                 Note that, when individual channels are to be read, all
@@ -39,7 +39,7 @@ function varargout = openNSx(varargin)
 %
 %   'c:XX:YY':    User can specify which channels need to be read. The
 %                 number of channels can be greater than or equal to 1
-%                 and less than or equal to 255. The channels can be
+%                 and less than or equal to 272. The channels can be
 %                 selected either by specifying a range (e.g. 20:45) or by
 %                 indicating individual channels (e.g. 3,6,7,90) or both.
 %                 Note that, when individual channels are to be read, all
@@ -74,13 +74,13 @@ function varargout = openNSx(varargin)
 %                 and 'sample'.
 %                 DEFAULT: reads 'sample'.
 %
-%   'uV':         Will read the spike waveforms in unit of uV instead of
+%   'uV':         Will read the recording waveforms in unit of uV instead of
 %                 raw values. Note that this conversion may lead to loss of
-%                 information (e.g. 15/4 = 4) since the waveforms type will
+%                 information (e.g. 15/4 = 4) since the data type will
 %                 stay in int16. It's recommended to read raw spike
 %                 waveforms and then perform the conversion at a later
 %                 time.
-%                 DEFAULT: will read waveform information in raw.
+%                 DEFAULT: will read recording information in raw.
 %
 %   'precision':  This will specify the precision for NSx file. If set to
 %                 'double' the NSx data will be read as 'double' and if set
@@ -107,6 +107,10 @@ function varargout = openNSx(varargin)
 %   'ver':        If this argument is passed to the function it will return
 %                 the version number of the function without reading any
 %                 data files.
+%
+%   'nozeropad':  It will not zeropad the data to compensate for the non-
+%                 zero start time.
+%                 DEFAULT: zeropads the loaded data.
 %
 %   OUTPUT:       Contains the NSx structure.
 %
@@ -239,6 +243,14 @@ function varargout = openNSx(varargin)
 % 7.0.0.0: January 27, 2020
 %   - Added support for 64-bit timestamps in NEV and NSx.
 %
+% 7.1.0.0: April 14, 2020
+%   - Added option to load the data without zero padding to compensate for 
+%     a non-zero start time. (David Kluger)
+%   - Bug fixes and documentation updates (David Kluger)
+%
+% 7.1.1.0: June 11, 2020
+%   - Fixed a bug related to fread and MATLAB 2020a.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -249,7 +261,7 @@ NSx.MetaTags = struct('FileTypeID',[],'SamplingLabel',[],'ChannelCount',[],'Samp
                       'FileExt', []);
 
                                     
-NSx.MetaTags.openNSxver = '7.0.0.0';
+NSx.MetaTags.openNSxver = '7.1.0.0';
                   
 %% Check for the latest version fo NPMK
 NPMKverChecker
@@ -257,7 +269,6 @@ NPMKverChecker
 % Defining constants
 ExtHeaderLength = 66;
 elecReading     = 0;
-maxNSPChannels  = 128;
 NSx.RawData.PausedFile = 0;
 syncShift = 0;
 
@@ -284,6 +295,8 @@ for i=1:length(varargin)
         ReadData = inputArgument;
     elseif strcmpi(inputArgument, 'nomultinsp')
         multinsp = 'no';
+    elseif strcmpi(inputArgument, 'nozeropad')
+        zeropad = 'no';
     elseif strcmpi(inputArgument, 'uV')
         waveformUnits = 'uV';
     elseif strcmpi(inputArgument, 'read')
@@ -344,10 +357,13 @@ for i=1:length(varargin)
         switch precisionTypeRaw
 			case 'int16'
 				precisionType = '*int16=>int16';
+                precisionData = 'int16';
             case 'short'
                 precisionType = '*short=>short';
+                precisionData = 'int16';
             case 'double'
                 precisionType = '*int16';
+                precisionData = 'double';
             otherwise
                 disp('Read type is not valid. Refer to ''help'' for more information.');
                 if nargout; varargout{1} = -1; end
@@ -413,17 +429,19 @@ end
 
 tic;
 
-%% Give all input arguments a default value. All input argumens are
+%% Give all input arguments a default value. All input arguments are
 %  optional.
 if ~exist('Report', 'var');        Report = 'noreport'; end
 if ~exist('ReadData', 'var');      ReadData = 'read'; end
 if ~exist('StartPacket', 'var');   StartPacket = 1; end
 if ~exist('TimeScale', 'var');     TimeScale = 'sample'; end
-if ~exist('precisionType', 'var'); precisionType = '*short=>short'; end
+if ~exist('precisionType', 'var'); precisionType = '*short=>short';...
+                                   precisionData='double'; end
 if ~exist('skipFactor', 'var');    skipFactor = 1; end
 if ~exist('modifiedTime', 'var');  modifiedTime = 0; end
 if ~exist('multinsp', 'var');      multinsp = 'yes'; end
 if ~exist('waveformUnits', 'var'); waveformUnits = 'raw'; end
+if ~exist('zeropad', 'var');       zeropad = 'yes'; end
 
 % Check to see if 512 setup and calculate offset
 if strcmpi(multinsp, 'yes')
@@ -449,10 +467,10 @@ FID = fopen([path fname], 'r', 'ieee-le');
 fileFullPath = fullfile(path, fname);
 [NSx.MetaTags.FilePath, NSx.MetaTags.Filename, NSx.MetaTags.FileExt] = fileparts(fileFullPath);
 
-NSx.MetaTags.FileTypeID   = fread(FID, [1,8]   , '*char');
+NSx.MetaTags.FileTypeID   = fread(FID, [1,8]   , 'uint8=>char');
 if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALSG')
 	NSx.MetaTags.FileSpec      = '2.1';
-    NSx.MetaTags.SamplingLabel = fread(FID, [1,16]  , '*char');
+    NSx.MetaTags.SamplingLabel = fread(FID, [1,16]  , 'uint8=>char');
     NSx.MetaTags.TimeRes       = 30000;
     NSx.MetaTags.SamplingFreq  = NSx.MetaTags.TimeRes / fread(FID, 1 , 'uint32=>double');
     ChannelCount               = double(fread(FID, 1       , 'uint32=>double'));
@@ -835,25 +853,32 @@ end
 channelIDToDelete = setdiff(1:ChannelCount, userRequestedChanRow);
 NSx.MetaTags.ChannelID(channelIDToDelete) = [];
 
+%% check if zeropad will cause problems due to large non-zero start time
+max_start_time = 10; % 10 seconds
+if strcmpi(zeropad, 'yes' && NSx.MetaTags.Timestamp(1) > max_start_time*NSx.MetaTags.SamplingFreq;
+    zeropad = 'no';
+    warning('Using nozeropad due to large non-zero start time (%d s)', NSx.MetaTags.Timestamp(1)/NSx.MetaTags.SamplingFreq);
+end
+
 %% Adjusting the file for a non-0 timestamp start
-if ~NSx.RawData.PausedFile && StartPacket == 1
+if ~NSx.RawData.PausedFile & StartPacket == 1 && strcmpi(zeropad, 'yes')
     if length(NSx.MetaTags.Timestamp) > 1
         cellIDX = 1; % only do this for the first cell segment and not modify the subsequent segments
         if strcmpi(ReadData, 'read')
-            NSx.Data{cellIDX} = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp(cellIDX) / skipFactor)) NSx.Data{cellIDX}];
+            NSx.Data{cellIDX} = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp(cellIDX) / skipFactor), precisionData) NSx.Data{cellIDX}];
         end
         NSx.MetaTags.DataPoints(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) + NSx.MetaTags.Timestamp(cellIDX);
         NSx.MetaTags.DataDurationSec(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) / NSx.MetaTags.SamplingFreq;
         NSx.MetaTags.Timestamp(cellIDX) = 0;
-    elseif strcmpi(ReadData, 'read') && NSx.MetaTags.Timestamp < 10*NSx.MetaTags.SamplingFreq % 0-pad delay if TimeStamp < 10 s
-        NSx.Data = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp / skipFactor)) NSx.Data];
+    elseif strcmpi(ReadData, 'read')
+        NSx.Data = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp / skipFactor), precisionData) NSx.Data];
         NSx.MetaTags.DataPoints = size(NSx.Data,2);
         NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints / NSx.MetaTags.SamplingFreq;
         NSx.MetaTags.Timestamp = 0;
     end
 
     if strcmpi(multinsp, 'yes')
-        NSx.Data = [zeros(NSx.MetaTags.ChannelCount, syncShift) NSx.Data];
+        NSx.Data = [zeros(NSx.MetaTags.ChannelCount, syncShift, precisionData) NSx.Data];
         NSx.MetaTags.DataPoints = size(NSx.Data,2);
         NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints / NSx.MetaTags.SamplingFreq;
     end

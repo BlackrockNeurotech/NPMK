@@ -402,4 +402,28 @@ NPMK Version 2.8.2.0: 5 May 2014
 % license.txt February 27, 2020
 %   - Added 3-clause BSD open-source license.
 %
-LATEST:5.0.0.0
+
+***** NPMK Version 5.2.0.0 :April 29, 2020 *****
+
+% settingFileFullPath 1.1.0.0: March 17, 2020
+%   - Updated to support unix file system.
+%
+% openNSx 7.1.0.0: April 14, 2020
+%   - Added option to load the data without zero padding to compensate for 
+%     a non-zero start time.
+%
+% openNEV 6.2.0.0: April 29, 2020
+%   - Added ability to read all types of recording event types.
+%   - Some bug fixes. (David Kluger)
+%
+% openCCF 2.2.0.0 April 29, 2020
+%   - Fixed an error where N-Trodes with less than 4 members read an extra
+%     1 as the extra non-existent members.
+
+***** NPMK Version 5.2.1.0 :June 11, 2020 *****
+
+% openNSx 7.1.1.0: June 11, 2020
+%   - Fixed a bug related to fread and MATLAB 2020a.
+
+
+LATEST:5.2.1.0
