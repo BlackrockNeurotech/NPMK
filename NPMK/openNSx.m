@@ -108,7 +108,7 @@ function varargout = openNSx(varargin)
 %                 the version number of the function without reading any
 %                 data files.
 %
-%   'nozeropad':  It will not zeropad the data to compensate foro the non-
+%   'nozeropad':  It will not zeropad the data to compensate for the non-
 %                 zero start time.
 %                 DEFAULT: zeropads the loaded data.
 %
@@ -429,7 +429,7 @@ end
 
 tic;
 
-%% Give all input arguments a default value. All input argumens are
+%% Give all input arguments a default value. All input arguments are
 %  optional.
 if ~exist('Report', 'var');        Report = 'noreport'; end
 if ~exist('ReadData', 'var');      ReadData = 'read'; end
@@ -852,6 +852,13 @@ end
 %% Adjusting the ChannelID variable to match the read electrodes
 channelIDToDelete = setdiff(1:ChannelCount, userRequestedChanRow);
 NSx.MetaTags.ChannelID(channelIDToDelete) = [];
+
+%% check if zeropad will cause problems due to large non-zero start time
+max_start_time = 10; % 10 seconds
+if strcmpi(zeropad, 'yes' && NSx.MetaTags.Timestamp(1) > max_start_time*NSx.MetaTags.SamplingFreq;
+    zeropad = 'no';
+    warning('Using nozeropad due to large non-zero start time (%d s)', NSx.MetaTags.Timestamp(1)/NSx.MetaTags.SamplingFreq);
+end
 
 %% Adjusting the file for a non-0 timestamp start
 if ~NSx.RawData.PausedFile & StartPacket == 1 && strcmpi(zeropad, 'yes')
