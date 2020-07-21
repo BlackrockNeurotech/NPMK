@@ -855,7 +855,7 @@ NSx.MetaTags.ChannelID(channelIDToDelete) = [];
 
 %% check if zeropad will cause problems due to large non-zero start time
 max_start_time = 10; % 10 seconds
-if strcmpi(zeropad, 'yes' && NSx.MetaTags.Timestamp(1) > max_start_time*NSx.MetaTags.SamplingFreq;
+if strcmpi(zeropad, 'yes') && NSx.MetaTags.Timestamp(1) > max_start_time*NSx.MetaTags.SamplingFreq;
     zeropad = 'no';
     warning('Using nozeropad due to large non-zero start time (%d s)', NSx.MetaTags.Timestamp(1)/NSx.MetaTags.SamplingFreq);
 end
