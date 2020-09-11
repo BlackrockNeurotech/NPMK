@@ -251,6 +251,15 @@ function varargout = openNSx(varargin)
 % 7.1.1.0: June 11, 2020
 %   - Fixed a bug related to fread and MATLAB 2020a.
 %
+% 7.3.0.0: September 11, 2020
+%   - Fixed a bug related to fread and MATLAB 2020a.
+%   - Gives a warning about FileSpec 3.0 and gives the user options for how 
+%     to proceed.
+%   - Added a warning about the data unit and that by default it in the
+%     unit of 250 nV or 1/4 µV.
+%   - If the units are in "raw", ths correct information is now written to
+%     the electrodes header: 250 nV (raw). 
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -520,7 +529,11 @@ elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.Fil
 		NSx.ElectrodesInfo(headerIDX).MaxDigiValue   = typecast(ExtendedHeader((25:26)+offset), 'int16');
 		NSx.ElectrodesInfo(headerIDX).MinAnalogValue = typecast(ExtendedHeader((27:28)+offset), 'int16');
 		NSx.ElectrodesInfo(headerIDX).MaxAnalogValue = typecast(ExtendedHeader((29:30)+offset), 'int16');
-		NSx.ElectrodesInfo(headerIDX).AnalogUnits    = char(ExtendedHeader((31:46)+offset))';
+        if strcmpi(waveformUnits, 'uV')
+            NSx.ElectrodesInfo(headerIDX).AnalogUnits    = char(ExtendedHeader((31:46)+offset))';
+        else
+            NSx.ElectrodesInfo(headerIDX).AnalogUnits    = '250 nV (raw)    ';
+        end
 		NSx.ElectrodesInfo(headerIDX).HighFreqCorner = typecast(ExtendedHeader((47:50)+offset), 'uint32');
 		NSx.ElectrodesInfo(headerIDX).HighFreqOrder  = typecast(ExtendedHeader((51:54)+offset), 'uint32');
 		NSx.ElectrodesInfo(headerIDX).HighFilterType = typecast(ExtendedHeader((55:56)+offset), 'uint16');
@@ -864,7 +877,7 @@ if strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP') && strcmpi(zeropad, 'yes')
         if strcmpi(response, 'n')
             return;
         end
-        response = input('Do you want NPMK to ask you about this every time? ', 's');
+        response = input('Do you want NPMK to continue to ask you about this every time? ', 's');
         if strcmpi(response, 'n')
             NPMKSettings.ShowZeroPadWarning = 0;
             settingsManager(NPMKSettings);
@@ -902,6 +915,18 @@ if strcmpi(waveformUnits, 'uV')
     else
         NSx.Data = bsxfun(@rdivide, double(NSx.Data), 1./(double([NSx.ElectrodesInfo.MaxAnalogValue])./double([NSx.ElectrodesInfo.MaxDigiValue]))');
     end % End of contribution
+else
+    NPMKSettings = settingsManager;
+    if NPMKSettings.ShowuVWarning == 1
+        disp('The data is in unit of 1/4 µV. This mean that 100 in the NSx file equals to 25 µV. All values must be divided by 4.');
+        disp('To read the data in unit of µV, use openNSx(''uv''). For more information type: help openNSx');
+
+        response = input('Do you want NPMK to continue to ask you about this every time? ', 's');
+        if strcmpi(response, 'n')
+            NPMKSettings.ShowuVWarning = 0;
+            settingsManager(NPMKSettings);
+        end
+    end
 end
 
 %% Converting the data points in sample to seconds
