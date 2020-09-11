@@ -29,14 +29,13 @@ function NPMKverChecker()
 %
 % 1.2.0.0: August 13, 2020
 %   - Updated to use settingsManager instead. 
+% 
+% 1.3.0.0: September 11, 2020
+%   - Fixed a bug that was still creating a NPMKverChecker.dat.
 
 %% Variables and constants
 gitHubURL = 'https://github.com/BlackrockMicrosystems/NPMK/releases/latest';
 checkver = 0;
-
-%% Find full path of NPMKverChecker.m
-fileFullPath = which('NPMKverChecker.m');
-fileFullPath = [fileFullPath(1:end-1) 'dat'];
 
 %% Check for the latest version fo NPMK
 try
@@ -55,8 +54,8 @@ try
             disp('A new version of NPMK may be available.');
             fprintf('Please visit <a href="%s">GitHub NPMK Page</a> to get the latest version.\n', gitHubURL)
         end
-        checkeddate = datetime;
-        save(fileFullPath, 'checkeddate');
+        NPMKSettings.checkeddate = datetime;
+        settingsManager(NPMKSettings);
     end
 catch
 end

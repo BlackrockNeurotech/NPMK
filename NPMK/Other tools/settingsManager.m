@@ -35,7 +35,7 @@ fullPath = [fullPath(1:end-17) 'settings.npmk'];
 if exist(fullPath, 'file') == 2
     if length(varargin) == 0 % Load the settings file and send as output
         varargout{1} = load(fullPath, '-mat');
-        try varargout{1}.checkeddate; catch varargout{1}.checkeddate = now; end
+        try varargout{1}.checkeddate; catch varargout{1}.checkeddate = datetime; end
         try varargout{1}.ShowZeroPadWarning; catch varargout{1}.ShowZeroPadWarning = 1; end
         try varargout{1}.ShowuVWarning; catch varargout{1}.ShowuVWarning = 1; end
     elseif length(varargin) == 1

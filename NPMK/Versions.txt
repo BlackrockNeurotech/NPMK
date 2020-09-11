@@ -425,7 +425,7 @@ NPMK Version 2.8.2.0: 5 May 2014
 % openNSx 7.1.1.0: June 11, 2020
 %   - Fixed a bug related to fread and MATLAB 2020a.
 
-***** NPMK Version 5.3.0.0 :September 11, 2020 *****
+***** NPMK Version 5.4.0.0 :September 11, 2020 *****
 %
 % openNSx 7.3.0.0: September 11, 2020
 %   - Fixed a bug related to fread and MATLAB 2020a.
@@ -439,9 +439,9 @@ NPMK Version 2.8.2.0: 5 May 2014
 % settingsManager 1.0.0.0: September 11, 2020
 %   - Initial Release. 
 %
-% NPMKverChecer 1.2.0.0: September 11, 2020
+% NPMKverChecer 1.3.0.0: September 11, 2020
 %   - Updated to use settingsManager instead. 
+%   - Fixed a bug that was still creating a NPMKverChecker.dat.
 
 
-
-LATEST:5.3.0.0
+LATEST:5.4.0.0
