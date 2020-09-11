@@ -854,7 +854,25 @@ channelIDToDelete = setdiff(1:ChannelCount, userRequestedChanRow);
 NSx.MetaTags.ChannelID(channelIDToDelete) = [];
 
 %% Adjusting the file for a non-0 timestamp start
-if ~NSx.RawData.PausedFile & StartPacket == 1 && strcmpi(zeropad, 'yes')
+if strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP') && strcmpi(zeropad, 'yes')
+    NPMKSettings = settingsManager;
+    if NSx.MetaTags.Timestamp(1) > 30000 && NPMKSettings.ShowZeroPadWarning == 1
+        disp('You have chosen to zeropad the NSx file that contains a large timestamp gap.');
+        disp('For more information please refer to our <a href = "https://support.blackrockmicro.com/portal/en/kb/articles/nozeropad-in-opennsx">knowledge base article</a> on this subject.');
+        disp('https://support.blackrockmicro.com/portal/en/kb/articles/nozeropad-in-opennsx');
+        response = input('This could take a while. Do you wish to continue? ', 's');
+        if strcmpi(response, 'n')
+            return;
+        end
+        response = input('Do you want NPMK to ask you about this every time? ', 's');
+        if strcmpi(response, 'n')
+            NPMKSettings.ShowZeroPadWarning = 0;
+            settingsManager(NPMKSettings);
+        end
+    end
+end
+
+if ~NSx.RawData.PausedFile && StartPacket == 1 && strcmpi(zeropad, 'yes')
     if length(NSx.MetaTags.Timestamp) > 1
         cellIDX = 1; % only do this for the first cell segment and not modify the subsequent segments
         if strcmpi(ReadData, 'read')
