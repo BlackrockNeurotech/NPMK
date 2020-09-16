@@ -26,6 +26,9 @@ function varargout = settingsManager(varargin)
 % 1.0.0.0: August 13, 2020
 %   - Initial release.
 %
+% 1.1.0.0: September 16, 2020
+%   - Fixed a bug where the response to 1/4 uV warning was not being saved.
+%
 
 % Finding the correct settings file for this version of MATLAB
 fullPath = which('settingsManager.m');
@@ -42,7 +45,7 @@ if exist(fullPath, 'file') == 2
         checkeddate = varargin{1}.checkeddate;
         ShowZeroPadWarning = varargin{1}.ShowZeroPadWarning;
         ShowuVWarning = varargin{1}.ShowuVWarning;
-        save(fullPath, 'checkeddate', 'ShowZeroPadWarning'); % Save the settings file
+        save(fullPath, 'checkeddate', 'ShowZeroPadWarning', 'ShowuVWarning'); % Save the settings file
     end
 else % Since it doesn't exist, create and save it.
     checkeddate = datetime;

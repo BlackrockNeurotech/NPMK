@@ -443,5 +443,11 @@ NPMK Version 2.8.2.0: 5 May 2014
 %   - Updated to use settingsManager instead. 
 %   - Fixed a bug that was still creating a NPMKverChecker.dat.
 
+***** NPMK Version 5.4.1.0 :September 15, 2020 *****
+%
+% 1.1.0.0: settingsManager: September 16, 2020
+%   - Fixed a bug where the response to 1/4 uV warning was not being saved.
+%
 
-LATEST:5.4.0.0
+
+LATEST:5.4.1.0
