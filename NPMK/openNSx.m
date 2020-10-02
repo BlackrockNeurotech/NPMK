@@ -260,6 +260,9 @@ function varargout = openNSx(varargin)
 %   - If the units are in "raw", ths correct information is now written to
 %     the electrodes header: 250 nV (raw). 
 %
+% 7.3.1.0: October 2, 2020
+%   - If the units are in µV (openNSx('uv'), ths correct information is now 
+%     written to the electrodes header: 1000 nV (raw). 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -530,7 +533,7 @@ elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.Fil
 		NSx.ElectrodesInfo(headerIDX).MinAnalogValue = typecast(ExtendedHeader((27:28)+offset), 'int16');
 		NSx.ElectrodesInfo(headerIDX).MaxAnalogValue = typecast(ExtendedHeader((29:30)+offset), 'int16');
         if strcmpi(waveformUnits, 'uV')
-            NSx.ElectrodesInfo(headerIDX).AnalogUnits    = char(ExtendedHeader((31:46)+offset))';
+            NSx.ElectrodesInfo(headerIDX).AnalogUnits    = '1000 nV (raw)   ';
         else
             NSx.ElectrodesInfo(headerIDX).AnalogUnits    = '250 nV (raw)    ';
         end
