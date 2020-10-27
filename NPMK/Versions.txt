@@ -459,5 +459,16 @@ NPMK Version 2.8.2.0: 5 May 2014
 %   - If the units are in µV (openNSx('uv'), ths correct information is now 
 %     written to the electrodes header: 1000 nV (raw). 
 
+***** NPMK Version 5.4.3.0 :October 23, 2020 *****
+%
+% 1.1.1.0: NSxPowerSpectrum: October 23, 2020
+%   - Fixed a small bug with double defining the function name.% 
+% 7.3.2.0: openNSx: October 23, 2020
+%   - Fixed a typo.
+%
+% 1.2.0.0: splitNEVNtrode: October 27, 2020
+%   - Removed junk characters from the file.
+%
 
-LATEST:5.4.2.0
+
+LATEST:5.4.3.0

@@ -263,6 +263,10 @@ function varargout = openNSx(varargin)
 % 7.3.1.0: October 2, 2020
 %   - If the units are in µV (openNSx('uv'), ths correct information is now 
 %     written to the electrodes header: 1000 nV (raw). 
+%
+% 7.3.2.0: October 23, 2020
+%   - Fixed a typo.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -535,7 +539,8 @@ elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.Fil
         if strcmpi(waveformUnits, 'uV')
             NSx.ElectrodesInfo(headerIDX).AnalogUnits    = '1000 nV (raw)   ';
         else
-            NSx.ElectrodesInfo(headerIDX).AnalogUnits    = '250 nV (raw)    ';
+            conversion = int16(double(NSx.ElectrodesInfo(headerIDX).MaxAnalogValue) / double(NSx.ElectrodesInfo(headerIDX).MaxDigiValue)*1000);
+            NSx.ElectrodesInfo(headerIDX).AnalogUnits    = [num2str(conversion), ' nV (raw)    '];
         end
 		NSx.ElectrodesInfo(headerIDX).HighFreqCorner = typecast(ExtendedHeader((47:50)+offset), 'uint32');
 		NSx.ElectrodesInfo(headerIDX).HighFreqOrder  = typecast(ExtendedHeader((51:54)+offset), 'uint32');
@@ -589,7 +594,6 @@ elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.Fil
             break;
         end
         segmentCount = segmentCount + 1;
-        %%% MODIFY THIS LINE BELOW %%%
         if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
             startTimeStamp = fread(FID, 1, 'uint32');
         elseif strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP')
@@ -873,6 +877,7 @@ NSx.MetaTags.ChannelID(channelIDToDelete) = [];
 if strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP') && strcmpi(zeropad, 'yes')
     NPMKSettings = settingsManager;
     if NSx.MetaTags.Timestamp(1) > 30000 && NPMKSettings.ShowZeroPadWarning == 1
+        disp(' ');
         disp('You have chosen to zeropad the NSx file that contains a large timestamp gap.');
         disp('For more information please refer to our <a href = "https://support.blackrockmicro.com/portal/en/kb/articles/nozeropad-in-opennsx">knowledge base article</a> on this subject.');
         disp('https://support.blackrockmicro.com/portal/en/kb/articles/nozeropad-in-opennsx');
@@ -921,7 +926,8 @@ if strcmpi(waveformUnits, 'uV')
 else
     NPMKSettings = settingsManager;
     if NPMKSettings.ShowuVWarning == 1
-        disp('The data is in unit of 1/4 µV. This mean that 100 in the NSx file equals to 25 µV. All values must be divided by 4.');
+        disp(' ');
+        disp('The data is in unit of 1/4 µV. This means that 100 in the NSx file equals to 25 µV. All values must be divided by 4.');
         disp('To read the data in unit of µV, use openNSx(''uv''). For more information type: help openNSx');
 
         response = input('Do you want NPMK to continue to ask you about this every time? ', 's');

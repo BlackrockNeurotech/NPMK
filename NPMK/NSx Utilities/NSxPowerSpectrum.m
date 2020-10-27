@@ -27,8 +27,10 @@ function NSxPowerSpectrum(NSx, channelNumber, colorCode)
 %   - Fixed a bug where the sampling frequency is now read from the header
 %     file instead of it being fixed at 300 Hz.
 %
+% 1.1.1.0: October 23, 2020
+%   - Fixed a small bug with double defining the function name.
+%
 
-function NSxPowerSpectrum(NSx, channelNumber, colorCode)
 
 if ~exist('colorCode', 'var')
     colorCode = 'b';

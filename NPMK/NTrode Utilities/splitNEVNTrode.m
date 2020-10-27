@@ -35,6 +35,9 @@ function splitNSxNTrode
 % 1.1.0.0: October 10, 2016 - Saman Hagh Gooie
 %   - Bug fixes with file loading 
 %   - Fixed the file extension used for saving 
+%
+% 1.2.0.0: October 27, 2020
+%   - Removed junk characters from the file.
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -43,15 +46,15 @@ ccf = openCCF;
 splitCount = length(ccf.NTrodeInfo.NTrodeID);
 
 % Getting the file name
-<<<<<<< HEAD
+
 [fname, path] = getFile('*.nev', 'Choose an NSx file...');
-=======
+
 if ~ismac
     [fname, path] = getFile('*.nev', 'Choose an NEV file...');
 else
     [fname, path] = getFile('*.nev', 'Choose an NEV file...');
 end
->>>>>>> origin/master
+
 if fname == 0
     disp('No file was selected.');
     if nargout
