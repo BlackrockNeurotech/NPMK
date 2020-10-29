@@ -267,6 +267,14 @@ function varargout = openNSx(varargin)
 % 7.3.2.0: October 23, 2020
 %   - Fixed a typo.
 %
+% 7.4.0.0: October 29, 2020
+%   - Undid changes made to AnalogUnit and instead implemented
+%     NSx.ElectrodesInfo.Resolution to show what the resolution of the data
+%     is. By default, the resolution is set to 0.250 µV. If used with
+%     parameter 'uv', the resolution will be 1 µV. To always convert the
+%     data to µV, divide NSx.Data(CHANNEL,:) by
+%     NSx.ElectrodesInfo(CHANNEL).Resolution.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -536,12 +544,19 @@ elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.Fil
 		NSx.ElectrodesInfo(headerIDX).MaxDigiValue   = typecast(ExtendedHeader((25:26)+offset), 'int16');
 		NSx.ElectrodesInfo(headerIDX).MinAnalogValue = typecast(ExtendedHeader((27:28)+offset), 'int16');
 		NSx.ElectrodesInfo(headerIDX).MaxAnalogValue = typecast(ExtendedHeader((29:30)+offset), 'int16');
+        NSx.ElectrodesInfo(headerIDX).AnalogUnits    = char(ExtendedHeader((31:46)+offset))';
         if strcmpi(waveformUnits, 'uV')
-            NSx.ElectrodesInfo(headerIDX).AnalogUnits    = '1000 nV (raw)   ';
+            NSx.ElectrodesInfo(headerIDX).Resolution = 1;
         else
-            conversion = int16(double(NSx.ElectrodesInfo(headerIDX).MaxAnalogValue) / double(NSx.ElectrodesInfo(headerIDX).MaxDigiValue)*1000);
-            NSx.ElectrodesInfo(headerIDX).AnalogUnits    = [num2str(conversion), ' nV (raw)    '];
+            NSx.ElectrodesInfo(headerIDX).Resolution = ...
+                double(NSx.ElectrodesInfo(headerIDX).MaxAnalogValue) / double(NSx.ElectrodesInfo(headerIDX).MaxDigiValue);            
         end
+%         if strcmpi(waveformUnits, 'uV')
+%             NSx.ElectrodesInfo(headerIDX).AnalogUnits    = '1000 nV (raw)   ';
+%         else
+%             conversion = int16(double(NSx.ElectrodesInfo(headerIDX).MaxAnalogValue) / double(NSx.ElectrodesInfo(headerIDX).MaxDigiValue)*1000);
+%             NSx.ElectrodesInfo(headerIDX).AnalogUnits    = [num2str(conversion), ' nV (raw)    '];
+%         end
 		NSx.ElectrodesInfo(headerIDX).HighFreqCorner = typecast(ExtendedHeader((47:50)+offset), 'uint32');
 		NSx.ElectrodesInfo(headerIDX).HighFreqOrder  = typecast(ExtendedHeader((51:54)+offset), 'uint32');
 		NSx.ElectrodesInfo(headerIDX).HighFilterType = typecast(ExtendedHeader((55:56)+offset), 'uint16');

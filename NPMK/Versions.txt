@@ -463,6 +463,7 @@ NPMK Version 2.8.2.0: 5 May 2014
 %
 % 1.1.1.0: NSxPowerSpectrum: October 23, 2020
 %   - Fixed a small bug with double defining the function name.% 
+%
 % 7.3.2.0: openNSx: October 23, 2020
 %   - Fixed a typo.
 %
@@ -470,5 +471,15 @@ NPMK Version 2.8.2.0: 5 May 2014
 %   - Removed junk characters from the file.
 %
 
+***** NPMK Version 5.4.4.0 :October 29, 2020 *****
+%
+% 7.4.0.0: openNSx: October 29, 2020
+%   - Undid changes made to AnalogUnit and instead implemented
+%     NSx.ElectrodesInfo.Resolution to show what the resolution of the data
+%     is. By default, the resolution is set to 0.250 µV. If used with
+%     parameter 'uv', the resolution will be 1 µV. To always convert the
+%     data to µV, divide NSx.Data(CHANNEL,:) by
+%     NSx.ElectrodesInfo(CHANNEL).Resolution.
 
-LATEST:5.4.3.0
+
+LATEST:5.4.4.0
