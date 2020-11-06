@@ -552,9 +552,9 @@ f.EOF = double(ftell(FID));
 % Read Raw Header for saveNSx
 fseek(FID, 0, 'bof');
 NSx.RawData.Headers = fread(FID, f.EOexH, '*uint8');
-% if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
-NSx.RawData.DataHeader = fread(FID, timeStampBytes+5, '*uint8');
-% end
+if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
+    NSx.RawData.DataHeader = fread(FID, timeStampBytes+5, '*uint8');
+end
 fseek(FID, f.EOexH, 'bof');
 
 %% Reading all data headers and calculating all the file pointers for data
