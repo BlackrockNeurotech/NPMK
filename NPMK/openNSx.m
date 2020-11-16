@@ -590,7 +590,7 @@ elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.Fil
             % Fixing another bug in Central 6.01.00.00 TOC where DataPoints is
             % not written back into the Data Header
             %% BIG NEEDS TO BE FIXED
-            NSx.MetaTags.DataPoints = (uint64(f.EOF) - uint64(f.BOData))/(ChannelCount*2);
+            NSx.MetaTags.DataPoints = double(f.EOF - f.BOData)/(ChannelCount*2);
             break;
         end
         segmentCount = segmentCount + 1;
