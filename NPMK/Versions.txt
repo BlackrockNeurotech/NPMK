@@ -490,4 +490,4 @@ NPMK Version 2.8.2.0: 5 May 2014
 %
 
 
-LATEST:5.4.4.0
+LATEST:5.4.5.0
