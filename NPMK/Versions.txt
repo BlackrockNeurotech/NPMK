@@ -458,6 +458,7 @@ NPMK Version 2.8.2.0: 5 May 2014
 % 7.3.1.0: openNSx: October 2, 2020
 %   - If the units are in µV (openNSx('uv'), ths correct information is now 
 %     written to the electrodes header: 1000 nV (raw). 
+%
 
 ***** NPMK Version 5.4.3.0 :October 23, 2020 *****
 %
@@ -480,6 +481,13 @@ NPMK Version 2.8.2.0: 5 May 2014
 %     parameter 'uv', the resolution will be 1 µV. To always convert the
 %     data to µV, divide NSx.Data(CHANNEL,:) by
 %     NSx.ElectrodesInfo(CHANNEL).Resolution.
+%
+
+***** NPMK Version 5.4.5.0 :December 4, 2020 *****
+%
+% 1.2.1.0: splitNEVNTrode: November 17, 2020
+%   - Minor bug fixes and general code clean up - @David Kluger
+%
 
 
 LATEST:5.4.4.0

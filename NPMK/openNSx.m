@@ -285,7 +285,7 @@ NSx.MetaTags = struct('FileTypeID',[],'SamplingLabel',[],'ChannelCount',[],'Samp
                       'FileExt', []);
 
                                     
-NSx.MetaTags.openNSxver = '7.2.0.0';
+NSx.MetaTags.openNSxver = '7.4.0.0';
                   
 %% Check for the latest version fo NPMK
 NPMKverChecker
@@ -478,7 +478,7 @@ if strcmpi(multinsp, 'yes')
 end
 
 if strcmpi(ReadData, 'noread')
-%    disp('NOTE: Reading the header information only. To read the data use with parameter ''read'': openNSx(''read'')');
+    disp('NOTE: Reading the header information only. To read the data use with parameter ''read'': openNSx(''read'')');
 end
 
 if strcmp(Report, 'report')
@@ -549,7 +549,7 @@ elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.Fil
             NSx.ElectrodesInfo(headerIDX).Resolution = 1;
         else
             NSx.ElectrodesInfo(headerIDX).Resolution = ...
-                double(NSx.ElectrodesInfo(headerIDX).MaxAnalogValue) / double(NSx.ElectrodesInfo(headerIDX).MaxDigiValue);            
+                round(double(NSx.ElectrodesInfo(headerIDX).MaxAnalogValue) / double(NSx.ElectrodesInfo(headerIDX).MaxDigiValue),4);
         end
 %         if strcmpi(waveformUnits, 'uV')
 %             NSx.ElectrodesInfo(headerIDX).AnalogUnits    = '1000 nV (raw)   ';

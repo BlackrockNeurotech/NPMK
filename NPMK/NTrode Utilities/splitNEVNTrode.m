@@ -1,4 +1,4 @@
-function splitNSxNTrode
+function splitNEVNTrode
 
 % splitNEVNTrode
 % 
@@ -38,16 +38,18 @@ function splitNSxNTrode
 %
 % 1.2.0.0: October 27, 2020
 %   - Removed junk characters from the file.
+%
+% 1.2.1.0: November 17, 2020
+%   - Minor bug fixes and general code clean up - @David Kluger
 % 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Validating input parameter
 ccf = openCCF;
-splitCount = length(ccf.NTrodeInfo.NTrodeID);
+splitCount = unique(ccf.NTrodeInfo.NTrodeID);
+splitCount = splitCount(splitCount>0);
 
 % Getting the file name
-
-[fname, path] = getFile('*.nev', 'Choose an NSx file...');
 
 if ~ismac
     [fname, path] = getFile('*.nev', 'Choose an NEV file...');
@@ -62,10 +64,9 @@ if fname == 0
     end
     return;
 end
-fext = fname(end-3:end);
     
 % Loading the file    
-for idx = 1:splitCount
+for idx = splitCount
     % Determining whether tetrode channel is recorded and valid in NSx
     tetrodeChannels = ccf.NTrodeInfo.NTrodeMembers{idx};
     NEV = openNEV([path, fname(1:end-4) '.nev'], ['c:' num2str(tetrodeChannels)]); % modified by SH 05-Oct-2016
