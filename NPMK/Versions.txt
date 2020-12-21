@@ -489,5 +489,9 @@ NPMK Version 2.8.2.0: 5 May 2014
 %   - Minor bug fixes and general code clean up - @David Kluger
 %
 
+***** NPMK Version 5.5.0.0 :December 17, 2020 *****
+%
+% 1.2.0.0: splitNSx: December 17, 2020
+%   - Updated to add FileSpec 3.0 compatibility. - @David Kluger
 
-LATEST:5.4.5.0
+LATEST:5.5.0.0
