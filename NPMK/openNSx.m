@@ -395,11 +395,11 @@ for i=1:length(varargin)
         end
         clear precisionTypeRaw;
         next = '';
-    elseif strfind(' hour min sec sample ', [' ' inputArgument ' ']) ~= 0
+    elseif strfind(' hour min sec sample ', [' ' char(inputArgument) ' ']) ~= 0
         TimeScale = inputArgument;
     else
-        temp = inputArgument;
-        if length(temp)>3 && ...
+        temp = char(inputArgument);
+        if strlength(temp)>3 && ...
                 (strcmpi(temp(3),'\') || ...
                  strcmpi(temp(1),'/') || ...
                  strcmpi(temp(2),'/') || ...
@@ -440,13 +440,13 @@ else
     fname = [fname fext];
     path  = [path '/'];
 end
-if fname==0
+if ~exist('fname', 'var')
     if nargout; varargout{1} = -1; end
     return; 
 end
 
 %% Loading .x files for multiNSP configuration
-if strcmpi(fext(2:4), 'ns6') && length(fext) == 5
+if strcmpi(extractBetween(fext, 1, 5, 'Boundaries', 'exclusive'), 'ns6') && strlength(fext) == 5
     path(1) = fname(end);
     fname(end) = [];
 end
@@ -469,7 +469,7 @@ if ~exist('zeropad', 'var');       zeropad = 'yes'; end
 
 % Check to see if 512 setup and calculate offset
 if strcmpi(multinsp, 'yes')
-    fiveTwelveFlag = regexp(fname, '-i[0123]-');
+    fiveTwelveFlag = regexp(string(fname(1)), '-i[0123]-');
     if ~isempty(fiveTwelveFlag)
         syncShift = multiNSPSync(fullfile(path, fname));
     else
@@ -486,9 +486,9 @@ if strcmp(Report, 'report')
 end
 
 %% Reading Basic Header from file into NSx structure.
-FID = fopen([path fname], 'r', 'ieee-le');	
+FID = fopen([path{:}, fname{:}], 'r', 'ieee-le');	
 
-fileFullPath = fullfile(path, fname);
+fileFullPath = fullfile([path{:}, fname{:}]);
 [NSx.MetaTags.FilePath, NSx.MetaTags.Filename, NSx.MetaTags.FileExt] = fileparts(fileFullPath);
 
 NSx.MetaTags.FileTypeID   = fread(FID, [1,8]   , 'uint8=>char');
@@ -978,6 +978,7 @@ end
 
 %% If user does not specify an output argument it will automatically create
 %  a structure.
+fext = char(fext);
 outputName = ['NS' fext(4)];
 if (nargout == 0)
     assignin('caller', outputName, NSx);

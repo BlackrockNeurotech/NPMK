@@ -284,7 +284,7 @@ for i=1:length(varargin)
         case 'nooverwrite'
             Flags.Overwrite = 'nooverwrite';
         otherwise
-            temp = varargin{i};
+            temp = char(varargin{i});
             if length(temp)>3 && ...
                     (strcmpi(temp(3),'\') || ...
                      strcmpi(temp(1),'/') || ...
@@ -348,6 +348,7 @@ end
 [~, ~, fileExt] = fileparts(fileFullPath);
 
 %% Loading .x files for multiNSP configuration
+fileExt = char(fileExt);
 if strcmpi(fileExt(2:4), 'nev') && length(fileExt) == 5
     fileFullPath(1) = fileFullPath(end);
     fileFullPath(end) = [];
@@ -396,7 +397,8 @@ if strcmpi(Flags.ParseData, 'parse')
 end
 
 tic;
-matPath = [fileFullPath(1:end-4) '.mat'];
+%matPath = [fileFullPath(1:end-4) '.mat'];
+matPath = [char(extractBetween(fileFullPath, 1, strlength(fileFullPath)-4)), '.mat'];
 
 %% Check for a MAT file and load that instead of NEV
 if exist(matPath, 'file') == 2 && strcmpi(Flags.NoMAT, 'yesmat') && strcmpi(Flags.WarningStat, 'warning')
