@@ -275,6 +275,9 @@ function varargout = openNSx(varargin)
 %     data to µV, divide NSx.Data(CHANNEL,:) by
 %     NSx.ElectrodesInfo(CHANNEL).Resolution.
 %
+% 7.4.1.0: April 20, 2021
+%   - Fixed a bug related to file opening.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -398,7 +401,7 @@ for i=1:length(varargin)
     elseif strfind(' hour min sec sample ', [' ' inputArgument ' ']) ~= 0
         TimeScale = inputArgument;
     else
-        temp = inputArgument;
+        temp = char(inputArgument);
         if length(temp)>3 && ...
                 (strcmpi(temp(3),'\') || ...
                  strcmpi(temp(1),'/') || ...
