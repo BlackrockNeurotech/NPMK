@@ -502,4 +502,10 @@ NPMK Version 2.8.2.0: 5 May 2014
 % 7.4.1.0: openNSx: April 20, 2021
 %   - Fixed a bug related to file opening.
 
-LATEST:5.5.1.0
+***** NPMK Version 5.5.2.0 :May 5, 2021 *****
+%
+% 7.4.2.0: openNSx: May 5, 2021
+%   - Fixed a bug related to NeuralSG file format (File Spec 2.1).
+%
+
+LATEST:5.5.2.0

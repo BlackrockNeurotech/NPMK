@@ -278,6 +278,9 @@ function varargout = openNSx(varargin)
 % 7.4.1.0: April 20, 2021
 %   - Fixed a bug related to file opening.
 %
+% 7.4.2.0: May 5, 2021
+%   - Fixed a bug related to NeuralSG file format (File Spec 2.1).
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -288,7 +291,7 @@ NSx.MetaTags = struct('FileTypeID',[],'SamplingLabel',[],'ChannelCount',[],'Samp
                       'FileExt', []);
 
                                     
-NSx.MetaTags.openNSxver = '7.4.0.0';
+NSx.MetaTags.openNSxver = '7.4.2.0';
                   
 %% Check for the latest version fo NPMK
 NPMKverChecker
@@ -496,6 +499,7 @@ fileFullPath = fullfile(path, fname);
 
 NSx.MetaTags.FileTypeID   = fread(FID, [1,8]   , 'uint8=>char');
 if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALSG')
+    timeStampBytes             = 4;
 	NSx.MetaTags.FileSpec      = '2.1';
     NSx.MetaTags.SamplingLabel = fread(FID, [1,16]  , 'uint8=>char');
     NSx.MetaTags.TimeRes       = 30000;
@@ -921,7 +925,13 @@ if ~NSx.RawData.PausedFile && StartPacket == 1 && strcmpi(zeropad, 'yes')
         NSx.MetaTags.DataDurationSec(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) / NSx.MetaTags.SamplingFreq;
         NSx.MetaTags.Timestamp(cellIDX) = 0;
     elseif strcmpi(ReadData, 'read')
-        NSx.Data = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp / skipFactor), precisionData) NSx.Data];
+        try
+            NSx.Data = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp / skipFactor), precisionData) NSx.Data];
+        catch
+            disp('There is not enough memory to read this file. Use openNSx(''nozeropad.'').');
+            disp('For more information please refer to our <a href = "https://support.blackrockmicro.com/portal/en/kb/articles/nozeropad-in-opennsx">knowledge base article</a> on this subject.');
+            return;
+        end
         NSx.MetaTags.DataPoints = size(NSx.Data,2);
         NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints / NSx.MetaTags.SamplingFreq;
         NSx.MetaTags.Timestamp = 0;
