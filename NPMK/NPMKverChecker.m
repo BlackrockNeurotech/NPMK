@@ -23,16 +23,16 @@ function NPMKverChecker()
 %
 
 %% Check for the latest version fo NPMK
-try
-    FIDv = fopen('Versions.txt');
-    verFile = fscanf(FIDv, '%s'); 
-    fclose(FIDv);
-    latestVersion = verFile(findstr('LATEST', verFile)+7:findstr('LATEST', verFile)+13);
-    gitHubPage = urlread('https://github.com/BlackrockMicrosystems/NPMK/releases/latest');
-    newVersionAvailable = findstr(latestVersion, gitHubPage);
-    if isempty(newVersionAvailable)
-        disp('A new version of NPMK may be available.');
-        disp('Please visit https://github.com/BlackrockMicrosystems/NPMK/releases/latest to get the latest version.');
-    end
-catch
-end
+%try
+%     FIDv = fopen('Versions.txt');
+%     verFile = fscanf(FIDv, '%s'); 
+%     fclose(FIDv);
+%     latestVersion = verFile(findstr('LATEST', verFile)+7:findstr('LATEST', verFile)+13);
+%     gitHubPage = urlread('https://github.com/BlackrockMicrosystems/NPMK/releases/latest');
+%     newVersionAvailable = findstr(latestVersion, gitHubPage);
+%     if isempty(newVersionAvailable)
+%         disp('A new version of NPMK may be available.');
+%         disp('Please visit https://github.com/BlackrockMicrosystems/NPMK/releases/latest to get the latest version.');
+%     end
+% catch
+%end
