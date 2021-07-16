@@ -281,6 +281,10 @@ function varargout = openNSx(varargin)
 % 7.4.2.0: May 5, 2021
 %   - Fixed a bug related to NeuralSG file format (File Spec 2.1).
 %
+% 7.4.3.0: July 16, 2021
+%   - Fixed a minor bug for when the data header is not written properly
+%     and the data needs to be used to calculate the data length.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -291,7 +295,7 @@ NSx.MetaTags = struct('FileTypeID',[],'SamplingLabel',[],'ChannelCount',[],'Samp
                       'FileExt', []);
 
                                     
-NSx.MetaTags.openNSxver = '7.4.2.0';
+NSx.MetaTags.openNSxver = '7.4.3.0';
                   
 %% Check for the latest version fo NPMK
 NPMKverChecker
@@ -612,7 +616,7 @@ elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.Fil
             % Fixing another bug in Central 6.01.00.00 TOC where DataPoints is
             % not written back into the Data Header
             %% BIG NEEDS TO BE FIXED
-            NSx.MetaTags.DataPoints = double(f.EOF - f.BOData)/(ChannelCount*2);
+            NSx.MetaTags.DataPoints = floor(double(f.EOF - f.BOData)/(ChannelCount*2));
             break;
         end
         segmentCount = segmentCount + 1;
