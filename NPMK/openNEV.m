@@ -221,7 +221,8 @@ function varargout = openNEV(varargin)
 % 6.2.0.0: April 29, 2020
 %   - Added ability to read all types of recording event types.
 %
-% 
+% 6.2.1.0: April 20, 2021
+%   - Fixed a bug related to file opening.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Check for the latest version fo NPMK
@@ -284,33 +285,33 @@ for i=1:length(varargin)
         case 'nooverwrite'
             Flags.Overwrite = 'nooverwrite';
         otherwise
-            temp = varargin{i};
-            if length(temp)>3 && ...
-                    (strcmpi(temp(3),'\') || ...
-                     strcmpi(temp(1),'/') || ...
-                     strcmpi(temp(2),'/') || ...
-                     strcmpi(temp(1:2), '\\') || ...
-                     strcmpi(temp(end-3), '.'))
+            tempst = char(varargin{i});
+            if length(tempst)>3 && ...
+                    (strcmpi(tempst(3),'\') || ...
+                     strcmpi(tempst(1),'/') || ...
+                     strcmpi(tempst(2),'/') || ...
+                     strcmpi(tempst(1:2), '\\') || ...
+                     strcmpi(tempst(end-3), '.'))
                 fileFullPath = varargin{i};
                 if exist(fileFullPath, 'file') ~= 2
                     disp('The file does not exist.');
                     varargout{1} = [];
                     return;
                 end
-            elseif length(temp)>3 && strcmpi(temp(1:2),'t:') && ~strcmpi(temp(3), '\') && ~strcmpi(temp(3), '/')
-                temp(1:2) = [];
-                temp = str2num(temp);
-                if length(temp) == 1
-                    fprintf('Only one timepoint (%0.0f) was passed to the function.\n', temp);
-                    fprintf('The initial timepoint is set to 0, so data between 0 and %0.0f will be read.\n', temp);
-                    temp(2) = temp;
-                    temp(1) = 0;
+            elseif length(tempst)>3 && strcmpi(tempst(1:2),'t:') && ~strcmpi(tempst(3), '\') && ~strcmpi(tempst(3), '/')
+                tempst(1:2) = [];
+                tempst = str2num(tempst);
+                if length(tempst) == 1
+                    fprintf('Only one timepoint (%0.0f) was passed to the function.\n', tempst);
+                    fprintf('The initial timepoint is set to 0, so data between 0 and %0.0f will be read.\n', tempst);
+                    tempst(2) = tempst;
+                    tempst(1) = 0;
                 end
-                readTime = [temp(1), temp(end)];
+                readTime = [tempst(1), tempst(end)];
                 Flags.SaveFile = 'nosave';
                 Flags.NoMAT = 'nomat';
-            elseif (strncmp(temp, 'c:', 2) && temp(3) ~= '\' && temp(3) ~= '/')
-                Flags.selChannels = str2num(temp(3:end)); %#ok<ST2NM>
+            elseif (strncmp(tempst, 'c:', 2) && tempst(3) ~= '\' && tempst(3) ~= '/')
+                Flags.selChannels = str2num(tempst(3:end)); %#ok<ST2NM>
             else
                 if ~isnumeric(varargin{i})
                     disp(['Invalid argument ''' varargin{i} ''' .']);
