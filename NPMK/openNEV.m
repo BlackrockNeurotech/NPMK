@@ -223,6 +223,10 @@ function varargout = openNEV(varargin)
 %
 % 6.2.1.0: April 20, 2021
 %   - Fixed a bug related to file opening.
+%
+% 6.2.2.0: March 7, 2022
+%   - Fixed a data offset error related to handling 64-bit timestamps in
+%     spike data. (Spencer Kellis)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Check for the latest version fo NPMK
@@ -230,7 +234,7 @@ NPMKverChecker
 
 %% Defining structures
 NEV = struct('MetaTags',[], 'ElectrodesInfo', [], 'Data', []);
-NEV.MetaTags.openNEVver = '6.2.0.0';
+NEV.MetaTags.openNEVver = '6.2.2.0';
 NEV.MetaTags = struct('Subject', [], 'Experimenter', [], 'DateTime', [],...
     'SampleRes',[],'Comment',[],'FileTypeID',[],'Flags',[], 'openNEVver', [], ...
     'DateTimeRaw', [], 'FileSpec', [], 'PacketBytes', [], 'HeaderOffset', [], ...
@@ -835,14 +839,23 @@ if strcmpi(Flags.ReadData, 'read')
     end % end if ~isempty(allExtraDataPacketIndices)
 
     clear Timestamp tRawData count idx;
-      
-   % now read waveform
-    fseek(FID, Trackers.fExtendedHeader + 12, 'bof'); % Seek to location of spikes
-    fseek(FID, (Trackers.readPackets(1)-1) * Trackers.countPacketBytes, 'cof');
-    NEV.Data.Spikes.WaveformUnit = Flags.waveformUnits;
-    NEV.Data.Spikes.Waveform = fread(FID, [(Trackers.countPacketBytes-12)/2 Trackers.readPackets(2)], ...
-        [num2str((Trackers.countPacketBytes-12)/2) '*int16=>int16'], 12);
-    NEV.Data.Spikes.Waveform(:, [digserIndices allExtraDataPacketIndices]) = []; 
+
+    % now read waveform
+    if strcmpi(NEV.MetaTags.FileTypeID, 'NEURALEV')
+        fseek(FID, Trackers.fExtendedHeader + 8, 'bof'); % Seek to location of spikes
+        fseek(FID, (Trackers.readPackets(1)-1) * Trackers.countPacketBytes, 'cof');
+        NEV.Data.Spikes.WaveformUnit = Flags.waveformUnits;
+        NEV.Data.Spikes.Waveform = fread(FID, [(Trackers.countPacketBytes-8)/2 Trackers.readPackets(2)], ...
+            [num2str((Trackers.countPacketBytes-8)/2) '*int16=>int16'], 8);
+        NEV.Data.Spikes.Waveform(:, [digserIndices allExtraDataPacketIndices]) = []; 
+    elseif strcmpi(NEV.MetaTags.FileTypeID, 'BREVENTS')
+        fseek(FID, Trackers.fExtendedHeader + 12, 'bof'); % Seek to location of spikes
+        fseek(FID, (Trackers.readPackets(1)-1) * Trackers.countPacketBytes, 'cof');
+        NEV.Data.Spikes.WaveformUnit = Flags.waveformUnits;
+        NEV.Data.Spikes.Waveform = fread(FID, [(Trackers.countPacketBytes-12)/2 Trackers.readPackets(2)], ...
+            [num2str((Trackers.countPacketBytes-12)/2) '*int16=>int16'], 12);
+        NEV.Data.Spikes.Waveform(:, [digserIndices allExtraDataPacketIndices]) = []; 
+    end
 
     clear allExtraDataPacketIndices;
     if strcmpi(Flags.waveformUnits, 'uv')
