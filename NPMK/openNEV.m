@@ -842,20 +842,16 @@ if strcmpi(Flags.ReadData, 'read')
 
     % now read waveform
     if strcmpi(NEV.MetaTags.FileTypeID, 'NEURALEV')
-        fseek(FID, Trackers.fExtendedHeader + 8, 'bof'); % Seek to location of spikes
-        fseek(FID, (Trackers.readPackets(1)-1) * Trackers.countPacketBytes, 'cof');
-        NEV.Data.Spikes.WaveformUnit = Flags.waveformUnits;
-        NEV.Data.Spikes.Waveform = fread(FID, [(Trackers.countPacketBytes-8)/2 Trackers.readPackets(2)], ...
-            [num2str((Trackers.countPacketBytes-8)/2) '*int16=>int16'], 8);
-        NEV.Data.Spikes.Waveform(:, [digserIndices allExtraDataPacketIndices]) = []; 
+        timeStampBytes = 8;
     elseif strcmpi(NEV.MetaTags.FileTypeID, 'BREVENTS')
-        fseek(FID, Trackers.fExtendedHeader + 12, 'bof'); % Seek to location of spikes
-        fseek(FID, (Trackers.readPackets(1)-1) * Trackers.countPacketBytes, 'cof');
-        NEV.Data.Spikes.WaveformUnit = Flags.waveformUnits;
-        NEV.Data.Spikes.Waveform = fread(FID, [(Trackers.countPacketBytes-12)/2 Trackers.readPackets(2)], ...
-            [num2str((Trackers.countPacketBytes-12)/2) '*int16=>int16'], 12);
-        NEV.Data.Spikes.Waveform(:, [digserIndices allExtraDataPacketIndices]) = []; 
+        timeStampBytes = 12;
     end
+    fseek(FID, Trackers.fExtendedHeader + timeStampBytes, 'bof'); % Seek to location of spikes
+    fseek(FID, (Trackers.readPackets(1)-1) * Trackers.countPacketBytes, 'cof');
+    NEV.Data.Spikes.WaveformUnit = Flags.waveformUnits;
+    NEV.Data.Spikes.Waveform = fread(FID, [(Trackers.countPacketBytes-timeStampBytes)/2 Trackers.readPackets(2)], ...
+        [num2str((Trackers.countPacketBytes-timeStampBytes)/2) '*int16=>int16'], timeStampBytes);
+    NEV.Data.Spikes.Waveform(:, [digserIndices allExtraDataPacketIndices]) = []; 
 
     clear allExtraDataPacketIndices;
     if strcmpi(Flags.waveformUnits, 'uv')
