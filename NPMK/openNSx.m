@@ -251,6 +251,40 @@ function varargout = openNSx(varargin)
 % 7.1.1.0: June 11, 2020
 %   - Fixed a bug related to fread and MATLAB 2020a.
 %
+% 7.3.0.0: September 11, 2020
+%   - Fixed a bug related to fread and MATLAB 2020a.
+%   - Gives a warning about FileSpec 3.0 and gives the user options for how 
+%     to proceed.
+%   - Added a warning about the data unit and that by default it in the
+%     unit of 250 nV or 1/4 µV.
+%   - If the units are in "raw", ths correct information is now written to
+%     the electrodes header: 250 nV (raw). 
+%
+% 7.3.1.0: October 2, 2020
+%   - If the units are in µV (openNSx('uv'), ths correct information is now 
+%     written to the electrodes header: 1000 nV (raw). 
+%
+% 7.3.2.0: October 23, 2020
+%   - Fixed a typo.
+%
+% 7.4.0.0: October 29, 2020
+%   - Undid changes made to AnalogUnit and instead implemented
+%     NSx.ElectrodesInfo.Resolution to show what the resolution of the data
+%     is. By default, the resolution is set to 0.250 µV. If used with
+%     parameter 'uv', the resolution will be 1 µV. To always convert the
+%     data to µV, divide NSx.Data(CHANNEL,:) by
+%     NSx.ElectrodesInfo(CHANNEL).Resolution.
+%
+% 7.4.1.0: April 20, 2021
+%   - Fixed a bug related to file opening.
+%
+% 7.4.2.0: May 5, 2021
+%   - Fixed a bug related to NeuralSG file format (File Spec 2.1).
+%
+% 7.4.3.0: July 16, 2021
+%   - Fixed a minor bug for when the data header is not written properly
+%     and the data needs to be used to calculate the data length.
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -261,7 +295,7 @@ NSx.MetaTags = struct('FileTypeID',[],'SamplingLabel',[],'ChannelCount',[],'Samp
                       'FileExt', []);
 
                                     
-NSx.MetaTags.openNSxver = '7.1.0.0';
+NSx.MetaTags.openNSxver = '7.4.3.0';
                   
 %% Check for the latest version fo NPMK
 NPMKverChecker
@@ -374,7 +408,7 @@ for i=1:length(varargin)
     elseif strfind(' hour min sec sample ', [' ' inputArgument ' ']) ~= 0
         TimeScale = inputArgument;
     else
-        temp = inputArgument;
+        temp = char(inputArgument);
         if length(temp)>3 && ...
                 (strcmpi(temp(3),'\') || ...
                  strcmpi(temp(1),'/') || ...
@@ -454,7 +488,7 @@ if strcmpi(multinsp, 'yes')
 end
 
 if strcmpi(ReadData, 'noread')
-%    disp('NOTE: Reading the header information only. To read the data use with parameter ''read'': openNSx(''read'')');
+    disp('NOTE: Reading the header information only. To read the data use with parameter ''read'': openNSx(''read'')');
 end
 
 if strcmp(Report, 'report')
@@ -469,6 +503,7 @@ fileFullPath = fullfile(path, fname);
 
 NSx.MetaTags.FileTypeID   = fread(FID, [1,8]   , 'uint8=>char');
 if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALSG')
+    timeStampBytes             = 4;
 	NSx.MetaTags.FileSpec      = '2.1';
     NSx.MetaTags.SamplingLabel = fread(FID, [1,16]  , 'uint8=>char');
     NSx.MetaTags.TimeRes       = 30000;
@@ -521,7 +556,19 @@ elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.Fil
 		NSx.ElectrodesInfo(headerIDX).MaxDigiValue   = typecast(ExtendedHeader((25:26)+offset), 'int16');
 		NSx.ElectrodesInfo(headerIDX).MinAnalogValue = typecast(ExtendedHeader((27:28)+offset), 'int16');
 		NSx.ElectrodesInfo(headerIDX).MaxAnalogValue = typecast(ExtendedHeader((29:30)+offset), 'int16');
-		NSx.ElectrodesInfo(headerIDX).AnalogUnits    = char(ExtendedHeader((31:46)+offset))';
+        NSx.ElectrodesInfo(headerIDX).AnalogUnits    = char(ExtendedHeader((31:46)+offset))';
+        if strcmpi(waveformUnits, 'uV')
+            NSx.ElectrodesInfo(headerIDX).Resolution = 1;
+        else
+            NSx.ElectrodesInfo(headerIDX).Resolution = ...
+                round(double(NSx.ElectrodesInfo(headerIDX).MaxAnalogValue) / double(NSx.ElectrodesInfo(headerIDX).MaxDigiValue),4);
+        end
+%         if strcmpi(waveformUnits, 'uV')
+%             NSx.ElectrodesInfo(headerIDX).AnalogUnits    = '1000 nV (raw)   ';
+%         else
+%             conversion = int16(double(NSx.ElectrodesInfo(headerIDX).MaxAnalogValue) / double(NSx.ElectrodesInfo(headerIDX).MaxDigiValue)*1000);
+%             NSx.ElectrodesInfo(headerIDX).AnalogUnits    = [num2str(conversion), ' nV (raw)    '];
+%         end
 		NSx.ElectrodesInfo(headerIDX).HighFreqCorner = typecast(ExtendedHeader((47:50)+offset), 'uint32');
 		NSx.ElectrodesInfo(headerIDX).HighFreqOrder  = typecast(ExtendedHeader((51:54)+offset), 'uint32');
 		NSx.ElectrodesInfo(headerIDX).HighFilterType = typecast(ExtendedHeader((55:56)+offset), 'uint16');
@@ -571,11 +618,10 @@ elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.Fil
             % Fixing another bug in Central 6.01.00.00 TOC where DataPoints is
             % not written back into the Data Header
             %% BIG NEEDS TO BE FIXED
-            NSx.MetaTags.DataPoints = double(f.EOF - f.BOData)/(ChannelCount*2);
+            NSx.MetaTags.DataPoints = floor(double(f.EOF - f.BOData)/(ChannelCount*2));
             break;
         end
         segmentCount = segmentCount + 1;
-        %%% MODIFY THIS LINE BELOW %%%
         if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
             startTimeStamp = fread(FID, 1, 'uint32');
         elseif strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP')
@@ -856,7 +902,26 @@ channelIDToDelete = setdiff(1:ChannelCount, userRequestedChanRow);
 NSx.MetaTags.ChannelID(channelIDToDelete) = [];
 
 %% Adjusting the file for a non-0 timestamp start
-if ~NSx.RawData.PausedFile & StartPacket == 1 && strcmpi(zeropad, 'yes')
+if strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP') && strcmpi(zeropad, 'yes')
+    NPMKSettings = settingsManager;
+    if NSx.MetaTags.Timestamp(1) > 30000 && NPMKSettings.ShowZeroPadWarning == 1
+        disp(' ');
+        disp('You have chosen to zeropad the NSx file that contains a large timestamp gap.');
+        disp('For more information please refer to our <a href = "https://support.blackrockmicro.com/portal/en/kb/articles/nozeropad-in-opennsx">knowledge base article</a> on this subject.');
+        disp('https://support.blackrockmicro.com/portal/en/kb/articles/nozeropad-in-opennsx');
+        response = input('This could take a while. Do you wish to continue? ', 's');
+        if strcmpi(response, 'n')
+            return;
+        end
+        response = input('Do you want NPMK to continue to ask you about this every time? ', 's');
+        if strcmpi(response, 'n')
+            NPMKSettings.ShowZeroPadWarning = 0;
+            settingsManager(NPMKSettings);
+        end
+    end
+end
+
+if ~NSx.RawData.PausedFile && StartPacket == 1 && strcmpi(zeropad, 'yes')
     if length(NSx.MetaTags.Timestamp) > 1
         cellIDX = 1; % only do this for the first cell segment and not modify the subsequent segments
         if strcmpi(ReadData, 'read')
@@ -866,7 +931,13 @@ if ~NSx.RawData.PausedFile & StartPacket == 1 && strcmpi(zeropad, 'yes')
         NSx.MetaTags.DataDurationSec(cellIDX) = NSx.MetaTags.DataPoints(cellIDX) / NSx.MetaTags.SamplingFreq;
         NSx.MetaTags.Timestamp(cellIDX) = 0;
     elseif strcmpi(ReadData, 'read')
-        NSx.Data = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp / skipFactor), precisionData) NSx.Data];
+        try
+            NSx.Data = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp / skipFactor), precisionData) NSx.Data];
+        catch
+            disp('There is not enough memory to read this file. Use openNSx(''nozeropad.'').');
+            disp('For more information please refer to our <a href = "https://support.blackrockmicro.com/portal/en/kb/articles/nozeropad-in-opennsx">knowledge base article</a> on this subject.');
+            return;
+        end
         NSx.MetaTags.DataPoints = size(NSx.Data,2);
         NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints / NSx.MetaTags.SamplingFreq;
         NSx.MetaTags.Timestamp = 0;
@@ -886,6 +957,19 @@ if strcmpi(waveformUnits, 'uV')
     else
         NSx.Data = bsxfun(@rdivide, double(NSx.Data), 1./(double([NSx.ElectrodesInfo.MaxAnalogValue])./double([NSx.ElectrodesInfo.MaxDigiValue]))');
     end % End of contribution
+else
+    NPMKSettings = settingsManager;
+    if NPMKSettings.ShowuVWarning == 1
+        disp(' ');
+        disp('The data is in unit of 1/4 µV. This means that 100 in the NSx file equals to 25 µV. All values must be divided by 4.');
+        disp('To read the data in unit of µV, use openNSx(''uv''). For more information type: help openNSx');
+
+        response = input('Do you want NPMK to continue to ask you about this every time? ', 's');
+        if strcmpi(response, 'n')
+            NPMKSettings.ShowuVWarning = 0;
+            settingsManager(NPMKSettings);
+        end
+    end
 end
 
 %% Converting the data points in sample to seconds

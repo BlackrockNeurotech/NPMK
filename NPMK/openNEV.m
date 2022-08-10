@@ -221,7 +221,12 @@ function varargout = openNEV(varargin)
 % 6.2.0.0: April 29, 2020
 %   - Added ability to read all types of recording event types.
 %
-% 
+% 6.2.1.0: April 20, 2021
+%   - Fixed a bug related to file opening.
+%
+% 6.2.2.0: March 7, 2022
+%   - Fixed a data offset error related to handling 64-bit timestamps in
+%     spike data. (Spencer Kellis)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Check for the latest version fo NPMK
@@ -229,7 +234,7 @@ NPMKverChecker
 
 %% Defining structures
 NEV = struct('MetaTags',[], 'ElectrodesInfo', [], 'Data', []);
-NEV.MetaTags.openNEVver = '6.2.0.0';
+NEV.MetaTags.openNEVver = '6.2.2.0';
 NEV.MetaTags = struct('Subject', [], 'Experimenter', [], 'DateTime', [],...
     'SampleRes',[],'Comment',[],'FileTypeID',[],'Flags',[], 'openNEVver', [], ...
     'DateTimeRaw', [], 'FileSpec', [], 'PacketBytes', [], 'HeaderOffset', [], ...
@@ -284,33 +289,33 @@ for i=1:length(varargin)
         case 'nooverwrite'
             Flags.Overwrite = 'nooverwrite';
         otherwise
-            temp = varargin{i};
-            if length(temp)>3 && ...
-                    (strcmpi(temp(3),'\') || ...
-                     strcmpi(temp(1),'/') || ...
-                     strcmpi(temp(2),'/') || ...
-                     strcmpi(temp(1:2), '\\') || ...
-                     strcmpi(temp(end-3), '.'))
+            tempst = char(varargin{i});
+            if length(tempst)>3 && ...
+                    (strcmpi(tempst(3),'\') || ...
+                     strcmpi(tempst(1),'/') || ...
+                     strcmpi(tempst(2),'/') || ...
+                     strcmpi(tempst(1:2), '\\') || ...
+                     strcmpi(tempst(end-3), '.'))
                 fileFullPath = varargin{i};
                 if exist(fileFullPath, 'file') ~= 2
                     disp('The file does not exist.');
                     varargout{1} = [];
                     return;
                 end
-            elseif length(temp)>3 && strcmpi(temp(1:2),'t:') && ~strcmpi(temp(3), '\') && ~strcmpi(temp(3), '/')
-                temp(1:2) = [];
-                temp = str2num(temp);
-                if length(temp) == 1
-                    fprintf('Only one timepoint (%0.0f) was passed to the function.\n', temp);
-                    fprintf('The initial timepoint is set to 0, so data between 0 and %0.0f will be read.\n', temp);
-                    temp(2) = temp;
-                    temp(1) = 0;
+            elseif length(tempst)>3 && strcmpi(tempst(1:2),'t:') && ~strcmpi(tempst(3), '\') && ~strcmpi(tempst(3), '/')
+                tempst(1:2) = [];
+                tempst = str2num(tempst);
+                if length(tempst) == 1
+                    fprintf('Only one timepoint (%0.0f) was passed to the function.\n', tempst);
+                    fprintf('The initial timepoint is set to 0, so data between 0 and %0.0f will be read.\n', tempst);
+                    tempst(2) = tempst;
+                    tempst(1) = 0;
                 end
-                readTime = [temp(1), temp(end)];
+                readTime = [tempst(1), tempst(end)];
                 Flags.SaveFile = 'nosave';
                 Flags.NoMAT = 'nomat';
-            elseif (strncmp(temp, 'c:', 2) && temp(3) ~= '\' && temp(3) ~= '/')
-                Flags.selChannels = str2num(temp(3:end)); %#ok<ST2NM>
+            elseif (strncmp(tempst, 'c:', 2) && tempst(3) ~= '\' && tempst(3) ~= '/')
+                Flags.selChannels = str2num(tempst(3:end)); %#ok<ST2NM>
             else
                 if ~isnumeric(varargin{i})
                     disp(['Invalid argument ''' varargin{i} ''' .']);
@@ -834,13 +839,18 @@ if strcmpi(Flags.ReadData, 'read')
     end % end if ~isempty(allExtraDataPacketIndices)
 
     clear Timestamp tRawData count idx;
-      
-   % now read waveform
-    fseek(FID, Trackers.fExtendedHeader + 12, 'bof'); % Seek to location of spikes
+
+    % now read waveform
+    if strcmpi(NEV.MetaTags.FileTypeID, 'NEURALEV')
+        hOffset = 8;
+    elseif strcmpi(NEV.MetaTags.FileTypeID, 'BREVENTS')
+        hOffset = 12;
+    end
+    fseek(FID, Trackers.fExtendedHeader + hOffset, 'bof'); % Seek to location of spikes
     fseek(FID, (Trackers.readPackets(1)-1) * Trackers.countPacketBytes, 'cof');
     NEV.Data.Spikes.WaveformUnit = Flags.waveformUnits;
-    NEV.Data.Spikes.Waveform = fread(FID, [(Trackers.countPacketBytes-12)/2 Trackers.readPackets(2)], ...
-        [num2str((Trackers.countPacketBytes-12)/2) '*int16=>int16'], 12);
+    NEV.Data.Spikes.Waveform = fread(FID, [(Trackers.countPacketBytes-hOffset)/2 Trackers.readPackets(2)], ...
+        [num2str((Trackers.countPacketBytes-hOffset)/2) '*int16=>int16'], hOffset);
     NEV.Data.Spikes.Waveform(:, [digserIndices allExtraDataPacketIndices]) = []; 
 
     clear allExtraDataPacketIndices;
