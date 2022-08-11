@@ -105,24 +105,22 @@ end
 
 % Validating and opening the writable file
 if exist(FilePath)
-    
-        if exist(FilePath)
-         
-                disp('File already exists!');
-                OverwritePrompt = input('Would you like to overwrite? (Y/N)','s');
-                if strcmpi(OverwritePrompt,'y')
-                    Overwrite = 1;
-                    delete(FilePath);
-                else
-                    while exist(FilePath)
-                        ExistCount = ExistCount + 1;
-                        FilePath = fullfile(NEV.MetaTags.FilePath,[NEV.MetaTags.Filename '-Aligned-',num2str(ExistCount),NEV.MetaTags.FileExt]);
-                    end
-                    
-                end
-            
+
+    disp('File already exists!');
+    OverwritePrompt = input('Would you like to overwrite? (Y/N)','s');
+    if strcmpi(OverwritePrompt,'y')
+        Overwrite = 1;
+        delete(FilePath);
+    else
+        while exist(FilePath)
+            ExistCount = ExistCount + 1;
+            FilePath = fullfile(NEV.MetaTags.FilePath,[NEV.MetaTags.Filename '-Aligned-',num2str(ExistCount),NEV.MetaTags.FileExt]);
         end
+
+    end
+
 end
+
 
 FileID = fopen(FilePath, 'w', 'ieee-le');
     
@@ -394,7 +392,7 @@ if ~isempty(NEV.Data.Spikes.TimeStamp)
 
         fwrite(FileID, NEV.Data.Spikes.Waveform(:,IDX)','int16');
         
-        
+        fwrite(FileID, zeros(BytesInPackets-(ftell(FileID)-Before),1),'uint8');
         
         %for Value = 1:SpikeLength
         %    fwrite(FileID, NEV.Data.Spikes.Waveform(Value,IDX),'int16');

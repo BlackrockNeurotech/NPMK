@@ -50,12 +50,7 @@ splitCount = unique(ccf.NTrodeInfo.NTrodeID);
 splitCount = splitCount(splitCount>0);
 
 % Getting the file name
-
-if ~ismac
-    [fname, path] = getFile('*.nev', 'Choose an NEV file...');
-else
-    [fname, path] = getFile('*.nev', 'Choose an NEV file...');
-end
+[fname, path] = getFile('*.nev', 'Choose a NEV file...');
 
 if fname == 0
     disp('No file was selected.');

@@ -523,13 +523,14 @@ elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.Fil
     NSx.MetaTags.Comment       = char(BasicHeader(23:278))';
     NSx.MetaTags.TimeRes       = double(typecast(BasicHeader(283:286), 'uint32'));
     NSx.MetaTags.SamplingFreq  = NSx.MetaTags.TimeRes / double(typecast(BasicHeader(279:282), 'uint32'));
-    t                          = double(typecast(BasicHeader(287:302), 'uint16'));
+    %     t                          = double(typecast(BasicHeader(287:302), 'uint16'));
+    t                          = dir(fileFullPath);
     ChannelCount               = double(typecast(BasicHeader(303:306), 'uint32'));
     NSx.MetaTags.ChannelCount  = ChannelCount;
     readSize                   = double(ChannelCount * ExtHeaderLength);
     ExtendedHeader             = fread(FID, readSize, '*uint8');
     if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
-    	timeStampBytes = 4;
+        timeStampBytes = 4;
     elseif strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP')
         timeStampBytes = 8;
     end
@@ -577,8 +578,9 @@ elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.Fil
 	end
 	clear ExtendedHeader;
 	%% Parsing and validating FileSpec and DateTime variables
-	NSx.MetaTags.DateTimeRaw = t.';
-	NSx.MetaTags.DateTime = datestr(datenum(t(1), t(2), t(4), t(5), t(6), t(7)));
+% 	NSx.MetaTags.DateTimeRaw = t.';
+% 	NSx.MetaTags.DateTime = datestr(datenum(t(1), t(2), t(4), t(5), t(6), t(7)));
+    NSx.MetaTags.DateTime      = t.date;
 	clear t;
 else
     disp('This version of openNSx can only read File Specs 2.1, 2.2, 2.3, and 3.0.');
@@ -597,9 +599,9 @@ f.EOF = double(ftell(FID));
 % Read Raw Header for saveNSx
 fseek(FID, 0, 'bof');
 NSx.RawData.Headers = fread(FID, f.EOexH, '*uint8');
-% if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
-NSx.RawData.DataHeader = fread(FID, timeStampBytes+5, '*uint8');
-% end
+if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
+    NSx.RawData.DataHeader = fread(FID, timeStampBytes+5, '*uint8');
+end
 fseek(FID, f.EOexH, 'bof');
 
 %% Reading all data headers and calculating all the file pointers for data
