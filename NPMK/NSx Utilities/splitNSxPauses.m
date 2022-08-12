@@ -58,7 +58,7 @@ else
 end
 
 %% Getting header information
-NSx = openNSx('noread', [path fname ]);
+NSx = openNSx('read', [path fname ]);
     
 % Loading the file
 %% Reading Basic Header from file into NSx structure.
@@ -97,8 +97,8 @@ elseif strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
     segmentBytes = NSx.MetaTags.DataPoints * 2 * double(channelCount);
     % Reading the headers and the data header
     fseek(FID, 0, 'bof');
-    fileHeader = fread(FID, positionEOE, 'char');
-    dataHeader = fread(FID, 9, 'char');
+    fileHeader = fread(FID, positionEOE, '*uint8');
+    dataHeader = fread(FID, 9, '*uint8');
 	fseek(FID, positionEOE, 'bof');
     disp(['Splitting the NSx file in ' num2str(splitCount) ' pieces...']);
     for idx = 1:splitCount
@@ -107,17 +107,29 @@ elseif strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
         fprintf('\nReading segment %d... ', idx);
         % Reading the segment
         fseek(FID, 9, 'cof'); % Skipping the data header
-        dataSegment = fread(FID, segmentBytes(idx), 'char');
+        
+        % divide segment to speed up reading 
+        subdiv=ceil(segmentBytes(idx)/NSx.MetaTags.DataPoints(idx));
+        dataSegment=cell(subdiv,1);
+        for segbit=1:subdiv
+            if segbit==1 && mod(segmentBytes(idx),subdiv)>0
+                dataSegment{segbit} = fread(FID, floor(segmentBytes(idx)/subdiv)+mod(segmentBytes(idx),subdiv), '*uint8');
+            else
+                dataSegment{segbit} = fread(FID, segmentBytes(idx)/subdiv, '*uint8');
+            end
+        end            
+        
+%         dataSegment = fread(FID, segmentBytes(idx), 'char');
         fprintf('Writing segment %d... ', idx);
         % Writing the segmented data into file
-        fwrite(FIDw, fileHeader, 'char');
+        fwrite(FIDw, fileHeader, '*uint8');
         % Set the timestamp of the segments 2+ to 0 so there's no
         % introduced shift by openNSx.
         if idx > 1
             dataHeader(2:5) = 0;
         end
-        fwrite(FIDw, dataHeader, 'char');
-        fwrite(FIDw, dataSegment, 'char');
+        fwrite(FIDw, dataHeader, '*uint8');
+        fwrite(FIDw, vertcat(dataSegment{:}));
         % Clearing variables and closing file
         clear dataSegment;
         fclose(FIDw);
