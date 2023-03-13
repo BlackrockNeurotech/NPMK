@@ -256,12 +256,12 @@ function varargout = openNSx(varargin)
 %   - Gives a warning about FileSpec 3.0 and gives the user options for how 
 %     to proceed.
 %   - Added a warning about the data unit and that by default it in the
-%     unit of 250 nV or 1/4 µV.
+%     unit of 250 nV or 1/4 ï¿½V.
 %   - If the units are in "raw", ths correct information is now written to
 %     the electrodes header: 250 nV (raw). 
 %
 % 7.3.1.0: October 2, 2020
-%   - If the units are in µV (openNSx('uv'), ths correct information is now 
+%   - If the units are in ï¿½V (openNSx('uv'), ths correct information is now 
 %     written to the electrodes header: 1000 nV (raw). 
 %
 % 7.3.2.0: October 23, 2020
@@ -270,9 +270,9 @@ function varargout = openNSx(varargin)
 % 7.4.0.0: October 29, 2020
 %   - Undid changes made to AnalogUnit and instead implemented
 %     NSx.ElectrodesInfo.Resolution to show what the resolution of the data
-%     is. By default, the resolution is set to 0.250 µV. If used with
-%     parameter 'uv', the resolution will be 1 µV. To always convert the
-%     data to µV, divide NSx.Data(CHANNEL,:) by
+%     is. By default, the resolution is set to 0.250 ï¿½V. If used with
+%     parameter 'uv', the resolution will be 1 ï¿½V. To always convert the
+%     data to ï¿½V, divide NSx.Data(CHANNEL,:) by
 %     NSx.ElectrodesInfo(CHANNEL).Resolution.
 %
 % 7.4.1.0: April 20, 2021
@@ -495,6 +495,8 @@ if strcmp(Report, 'report')
     disp(['openNSx ' NSx.MetaTags.openNSxver]);
 end
 
+
+
 %% Reading Basic Header from file into NSx structure.
 FID = fopen([path fname], 'r', 'ieee-le');	
 
@@ -522,7 +524,7 @@ elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.Fil
     NSx.MetaTags.SamplingLabel = char(BasicHeader(7:22))';
     NSx.MetaTags.Comment       = char(BasicHeader(23:278))';
     NSx.MetaTags.TimeRes       = double(typecast(BasicHeader(283:286), 'uint32'));
-    NSx.MetaTags.SamplingFreq  = NSx.MetaTags.TimeRes / double(typecast(BasicHeader(279:282), 'uint32'));
+    NSx.MetaTags.SamplingFreq  = 30000 / double(typecast(BasicHeader(279:282), 'uint32'));
     t                          = double(typecast(BasicHeader(287:302), 'uint16'));
     ChannelCount               = double(typecast(BasicHeader(303:306), 'uint32'));
     NSx.MetaTags.ChannelCount  = ChannelCount;
@@ -589,6 +591,41 @@ else
     return;
 end
 
+%% Copying ChannelID to MetaTags for filespec 2.2, 2.3, and 3.0 for compatibility with filespec 2.1
+if or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP'))
+    NSx.MetaTags.ChannelID = [NSx.ElectrodesInfo.ElectrodeID]';
+end
+
+
+%% Determining the number of channels to read and validating the input
+% Moved higher up - DK 20230303
+if ~elecReading
+    if ~exist('userRequestedChanRow', 'var')
+        userRequestedChannels = NSx.MetaTags.ChannelID;
+    else
+        if any(userRequestedChanRow > ChannelCount)
+            disp(['Channel file only contains ' num2str(ChannelCount) ' channels.']);
+            fclose(FID); clear variables; if nargout; varargout{1} = -1; end; return;
+        else
+            userRequestedChannels = NSx.MetaTags.ChannelID(userRequestedChanRow);
+            NSx.MetaTags.ChannelCount = length(userRequestedChannels);
+        end
+    end
+else
+    NSx.MetaTags.ChannelCount = length(userRequestedChannels);
+end
+
+for idx = 1:length(userRequestedChannels)
+    if ~any(ismember(NSx.MetaTags.ChannelID, userRequestedChannels(idx)))
+        disp(['Electrode ' num2str(Mapfile.Channel2Electrode(userRequestedChannels(idx))) ' does not exist in this file.']);
+        fclose(FID); 
+        clear variables; 
+        if nargout; varargout{1} = -1; end
+        return;
+    end
+    userRequestedChanRow(idx) = find(NSx.MetaTags.ChannelID == userRequestedChannels(idx),1);
+end
+
 % Determining the length of file and storing the value of fEOF
 f.EOexH = double(ftell(FID));
 fseek(FID, 0, 'eof');
@@ -602,6 +639,18 @@ NSx.RawData.DataHeader = fread(FID, timeStampBytes+5, '*uint8');
 % end
 fseek(FID, f.EOexH, 'bof');
 
+%% Central v7.6.0 needs corrections for PTP clock drift - DK 20230303
+isPTP = false;
+if NSx.MetaTags.TimeRes > 1e5
+    PacketSize = 1 + 8 + 4 + ChannelCount*2; % byte (Header) + uint64 (Timestamp) + uint32 (Samples, always 1) + int16*nChan (Data)
+    npackets = floor((f.EOF - f.EOexH)/PacketSize);
+    fseek(FID,1 + 8,'cof'); % byte (Header) + uint64 (Timestamp)
+    patchcheck = fread(FID,10,'uint32',PacketSize-4);
+    if sum(patchcheck) == length(patchcheck)
+        isPTP = true;
+    end
+end
+
 %% Reading all data headers and calculating all the file pointers for data
 % and headers
 if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALSG')
@@ -610,34 +659,42 @@ if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALSG')
     f.EOData = f.EOF;
     NSx.MetaTags.DataPoints = (f.EOF-f.EOexH)/(ChannelCount*2);
 elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP'))
-    segmentCount = 0;
-    while double(ftell(FID)) < f.EOF
-        if (fread(FID, 1, 'uint8') ~= 1)
-            % Fixing another bug in Central 6.01.00.00 TOC where DataPoints is
-            % not written back into the Data Header
-            %% BIG NEEDS TO BE FIXED
-            NSx.MetaTags.DataPoints = floor(double(f.EOF - f.BOData)/(ChannelCount*2));
-            break;
+    % Adding logic for Central v7.6 clock drift - DK 20230303
+    if ~isPTP
+        segmentCount = 0;
+        while double(ftell(FID)) < f.EOF
+            if (fread(FID, 1, 'uint8') ~= 1)
+                % Fixing another bug in Central 6.01.00.00 TOC where DataPoints is
+                % not written back into the Data Header
+                %% BIG NEEDS TO BE FIXED
+                NSx.MetaTags.DataPoints = floor(double(f.EOF - f.BOData)/(ChannelCount*2));
+                break;
+            end
+            segmentCount = segmentCount + 1;
+            if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
+                startTimeStamp = fread(FID, 1, 'uint32');
+            elseif strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP')
+                startTimeStamp = fread(FID, 1, 'uint64');
+            end
+            if strcmpi(multinsp, 'yes')
+                startTimeStamp = startTimeStamp + syncShift;
+                fseek(FID, -timeStampBytes, 'cof');
+                fwrite(FID, startTimeStamp, '*uint32');
+            end
+            NSx.MetaTags.Timestamp(segmentCount)  = startTimeStamp;
+            NSx.MetaTags.DataPoints(segmentCount) = fread(FID, 1, 'uint32');
+            f.BOData(segmentCount) = double(ftell(FID));
+            fseek(FID, NSx.MetaTags.DataPoints(segmentCount) * ChannelCount * 2, 'cof');
+            f.EOData(segmentCount) = double(ftell(FID));
+            % Fixing the bug in 6.01.00.00 TOC where DataPoints is not
+            % updated and is left as 0
+            % NSx.MetaTags.DataPoints(segmentCount) = (f.EOData(segmentCount)-f.BOData(segmentCount))/(ChannelCount*2);
         end
-        segmentCount = segmentCount + 1;
-        if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
-            startTimeStamp = fread(FID, 1, 'uint32');
-        elseif strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP')
-            startTimeStamp = fread(FID, 1, 'uint64');
-        end
-        if strcmpi(multinsp, 'yes')
-            startTimeStamp = startTimeStamp + syncShift;
-            fseek(FID, -timeStampBytes, 'cof');
-            fwrite(FID, startTimeStamp, '*uint32');
-        end
-        NSx.MetaTags.Timestamp(segmentCount)  = startTimeStamp;
-        NSx.MetaTags.DataPoints(segmentCount) = fread(FID, 1, 'uint32');
-        f.BOData(segmentCount) = double(ftell(FID));
-        fseek(FID, NSx.MetaTags.DataPoints(segmentCount) * ChannelCount * 2, 'cof');
-        f.EOData(segmentCount) = double(ftell(FID));
-        % Fixing the bug in 6.01.00.00 TOC where DataPoints is not
-        % updated and is left as 0
-        % NSx.MetaTags.DataPoints(segmentCount) = (f.EOData(segmentCount)-f.BOData(segmentCount))/(ChannelCount*2);
+    else
+        fseek(FID,f.EOexH + 1,'bof'); % + byte (header)
+        NSx.MetaTags.Timestamp = fread(FID,npackets,'uint64',PacketSize-8)';
+        fseek(FID,f.EOexH + 9,'bof'); % + byte (header) + uint64 (timestamp)
+        NSx.MetaTags.DataPoints = fread(FID,npackets,'uint32',PacketSize-4)';
     end
 end
 
@@ -656,7 +713,8 @@ end
 % Create incrementing loop to skip from dataheader to dataheader and 
 % collect the dataheader data in individual cells
 headerCount = 0;
-if NSx.RawData.PausedFile == 1
+% Adding logic for Central v7.6 clock drift - DK 20230303
+if and(NSx.RawData.PausedFile == 1, ~isPTP)
     while double(ftell(FID)) < f.EOF
         headerCount = headerCount + 1;
         fseek(FID, f.EOexH, 'bof');
@@ -683,39 +741,6 @@ if NSx.RawData.PausedFile == 1
     NSx.RawData.DataHeader = FinalDataHeader;
 
     fseek(FID, f.EOexH, 'bof');
-end
-
-%% Copying ChannelID to MetaTags for filespec 2.2, 2.3, and 3.0 for compatibility with filespec 2.1
-if or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP'))
-    NSx.MetaTags.ChannelID = [NSx.ElectrodesInfo.ElectrodeID]';
-end
-
-%% Determining the number of channels to read and validating the input
-if ~elecReading
-    if ~exist('userRequestedChanRow', 'var')
-        userRequestedChannels = NSx.MetaTags.ChannelID;
-    else
-        if any(userRequestedChanRow > ChannelCount)
-            disp(['Channel file only contains ' num2str(ChannelCount) ' channels.']);
-            fclose(FID); clear variables; if nargout; varargout{1} = -1; end; return;
-        else
-            userRequestedChannels = NSx.MetaTags.ChannelID(userRequestedChanRow);
-            NSx.MetaTags.ChannelCount = length(userRequestedChannels);
-        end
-    end
-else
-    NSx.MetaTags.ChannelCount = length(userRequestedChannels);
-end
-
-for idx = 1:length(userRequestedChannels)
-    if ~any(ismember(NSx.MetaTags.ChannelID, userRequestedChannels(idx)))
-        disp(['Electrode ' num2str(Mapfile.Channel2Electrode(userRequestedChannels(idx))) ' does not exist in this file.']);
-        fclose(FID); 
-        clear variables; 
-        if nargout; varargout{1} = -1; end
-        return;
-    end
-    userRequestedChanRow(idx) = find(NSx.MetaTags.ChannelID == userRequestedChannels(idx),1);
 end
 
 %% Removing extra ElectrodesInfo for channels not read
@@ -784,7 +809,8 @@ EndPacket = EndPacket / skipFactor;
 % Finding which data segment the StartPacket is falling in-between
 segmentCounters = [];
 startTimeStampShift = 0;
-if NSx.RawData.PausedFile
+% Adding logic for Central v7.6 clock drift - DK 20230303
+if and(NSx.RawData.PausedFile, ~isPTP)
     dataPointOfInterest = StartPacket;
     for idx = 1:length(NSx.MetaTags.DataPoints)
         if dataPointOfInterest <= sum(NSx.MetaTags.DataPoints(1:idx)) %sum(NSx.MetaTags.DataPoints(1:idx)) < dataPointOfInterest && ...
@@ -835,35 +861,46 @@ clear TimeScale
 
 %% Reading the data if flag 'read' is used
 if strcmp(ReadData, 'read')
-
-    % Determine what channels to read
-    numChansToRead = double(length(min(userRequestedChanRow):max(userRequestedChanRow)));
-    if NSx.RawData.PausedFile
-        for dataIDX = segmentCounters(1):segmentCounters(2) %1:length(NSx.MetaTags.DataPoints)
-            fseek(FID, f.BOData(dataIDX), 'bof');
+    % Adding logic for Central v7.6 clock drift - DK 20230303
+    if ~isPTP
+        % Determine what channels to read
+        numChansToRead = double(length(min(userRequestedChanRow):max(userRequestedChanRow)));
+        if NSx.RawData.PausedFile
+            for dataIDX = segmentCounters(1):segmentCounters(2) %1:length(NSx.MetaTags.DataPoints)
+                fseek(FID, f.BOData(dataIDX), 'bof');
+                % Skip the file to the beginning of the time requsted, if not 0
+                fseek(FID, (segmentStartPacket(dataIDX) - 1) * 2 * ChannelCount, 'cof');
+                % Skip the file to the first channel to read
+                fseek(FID, (find(NSx.MetaTags.ChannelID == min(userRequestedChannels))-1) * 2, 'cof');        
+                % Read data
+                NSx.Data{size(NSx.Data,2)+1} = fread(FID, [numChansToRead segmentDataPoints(dataIDX)], [num2str(numChansToRead) precisionType], double((ChannelCount-numChansToRead)*2 + ChannelCount*(skipFactor-1)*2));
+            end
+            NSx.MetaTags.DataPoints = segmentDataPoints(segmentCounters(1):segmentCounters(2));
+            NSx.MetaTags.Timestamp = NSx.MetaTags.Timestamp(segmentCounters(1):segmentCounters(2));
+            NSx.MetaTags.Timestamp(1) = NSx.MetaTags.Timestamp(1) + startTimeStampShift;
+        else
+            fseek(FID, f.BOData(1), 'bof');
             % Skip the file to the beginning of the time requsted, if not 0
-            fseek(FID, (segmentStartPacket(dataIDX) - 1) * 2 * ChannelCount, 'cof');
+            fseek(FID, (StartPacket - 1) * 2 * ChannelCount, 'cof');
             % Skip the file to the first channel to read
             fseek(FID, (find(NSx.MetaTags.ChannelID == min(userRequestedChannels))-1) * 2, 'cof');        
             % Read data
-            NSx.Data{size(NSx.Data,2)+1} = fread(FID, [numChansToRead segmentDataPoints(dataIDX)], [num2str(numChansToRead) precisionType], double((ChannelCount-numChansToRead)*2 + ChannelCount*(skipFactor-1)*2));
+            NSx.Data = fread(FID, [numChansToRead DataLength], [num2str(numChansToRead) precisionType], double((ChannelCount-numChansToRead)*2 + ChannelCount*(skipFactor-1)*2));
         end
-        NSx.MetaTags.DataPoints = segmentDataPoints(segmentCounters(1):segmentCounters(2));
-        NSx.MetaTags.Timestamp = NSx.MetaTags.Timestamp(segmentCounters(1):segmentCounters(2));
-        NSx.MetaTags.Timestamp(1) = NSx.MetaTags.Timestamp(1) + startTimeStampShift;
     else
-        fseek(FID, f.BOData(1), 'bof');
-        % Skip the file to the beginning of the time requsted, if not 0
-        fseek(FID, (StartPacket - 1) * 2 * ChannelCount, 'cof');
-        % Skip the file to the first channel to read
-        fseek(FID, (find(NSx.MetaTags.ChannelID == min(userRequestedChannels))-1) * 2, 'cof');        
-        % Read data
-        NSx.Data = fread(FID, [numChansToRead DataLength], [num2str(numChansToRead) precisionType], double((ChannelCount-numChansToRead)*2 + ChannelCount*(skipFactor-1)*2));
+        fseek(FID,f.EOexH + 1 + 8 + 4,'bof'); % + byte (Header) + uint64 (Timestamp) + uint32 (samples is always 1)
+        DataTemp = fread(FID,[ChannelCount npackets],[num2str(ChannelCount) '*int16'],PacketSize-(ChannelCount)*2);
+        if exist('userRequestedChanRow', 'var')
+            NSx.Data = DataTemp(userRequestedChanRow,:);
+        else
+            NSx.Data = DataTemp;
+        end
     end
+
 end
 
 %% Fixing a bug in 6.03 TOC where an extra 0-length packet is introduced
-if NSx.RawData.PausedFile && strcmp(ReadData, 'read')
+if NSx.RawData.PausedFile && strcmp(ReadData, 'read') && ~isPTP
     if isempty(NSx.Data{1})
         NSx.Data = cell2mat(NSx.Data(2));
     end
@@ -878,20 +915,23 @@ if any(NSx.MetaTags.DataPoints == 0) && strcmp(ReadData, 'read')
 end
 
 %% Removing extra channels that were read, but weren't supposed to be read
-channelThatWereRead = min(userRequestedChanRow):max(userRequestedChanRow);
-if ~isempty(setdiff(channelThatWereRead,userRequestedChanRow))
-	deleteChannels = setdiff(channelThatWereRead, userRequestedChanRow) - min(userRequestedChanRow) + 1;
-    if NSx.RawData.PausedFile
-        for segIDX = 1:size(NSx.Data,2)
-            NSx.Data{segIDX}(deleteChannels,:) = [];
-        end
-    else
-        NSx.Data(deleteChannels,:) = [];
-    end
-end
+% Commenting this section out since I think that previous code should
+% capture this - DK 20230303
+% channelThatWereRead = min(userRequestedChanRow):max(userRequestedChanRow);
+% if ~isempty(setdiff(channelThatWereRead,userRequestedChanRow))
+% 	deleteChannels = setdiff(channelThatWereRead, userRequestedChanRow) - min(userRequestedChanRow) + 1;
+%     if NSx.RawData.PausedFile
+%         for segIDX = 1:size(NSx.Data,2)
+%             NSx.Data{segIDX}(deleteChannels,:) = [];
+%         end
+%     else
+%         NSx.Data(deleteChannels,:) = [];
+%     end
+% end
 
 %% Remove the cell if there is only one recorded segment present
-if all(size(NSx.Data) == [1,1])
+% Adding logic for Central v7.6 clock drift - DK 20230303
+if and(~isPTP,all(size(NSx.Data) == [1,1]))
     NSx.Data = NSx.Data{1};
 end
 
@@ -919,7 +959,8 @@ if strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP') && strcmpi(zeropad, 'yes')
     end
 end
 
-if ~NSx.RawData.PausedFile && StartPacket == 1 && strcmpi(zeropad, 'yes')
+% Adding logic for Central v7.6 clock drift - DK 20230303
+if ~NSx.RawData.PausedFile && StartPacket == 1 && strcmpi(zeropad, 'yes') && ~isPTP
     if length(NSx.MetaTags.Timestamp) > 1
         cellIDX = 1; % only do this for the first cell segment and not modify the subsequent segments
         if strcmpi(ReadData, 'read')
@@ -946,7 +987,11 @@ if ~NSx.RawData.PausedFile && StartPacket == 1 && strcmpi(zeropad, 'yes')
         NSx.MetaTags.DataPoints = size(NSx.Data,2);
         NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints / NSx.MetaTags.SamplingFreq;
     end
+elseif strcmpi(zeropad, 'yes') && isPTP
+    error('PTP time has nanosecond precision. Data will generate too many zeros without "nozeropad" argument.\n%s',...
+        'Align data instead using NSx.MetaTags.Timestamp. Contact Blackrock Support for help adjusting your analysis workflows.');
 end
+
 
 %% Adjusting for the data's unit.
 if strcmpi(waveformUnits, 'uV')
@@ -959,8 +1004,8 @@ else
     NPMKSettings = settingsManager;
     if NPMKSettings.ShowuVWarning == 1
         disp(' ');
-        disp('The data is in unit of 1/4 µV. This means that 100 in the NSx file equals to 25 µV. All values must be divided by 4.');
-        disp('To read the data in unit of µV, use openNSx(''uv''). For more information type: help openNSx');
+        disp('The data is in unit of 1/4 ï¿½V. This means that 100 in the NSx file equals to 25 ï¿½V. All values must be divided by 4.');
+        disp('To read the data in unit of ï¿½V, use openNSx(''uv''). For more information type: help openNSx');
 
         response = input('Do you want NPMK to continue to ask you about this every time? ', 's');
         if strcmpi(response, 'n')
