@@ -20,14 +20,15 @@ end
 % Generate structures for each field that is affected by this function;
 ts_PTP = cell(length(Data),1);
 ts_sums = zeros(length(Data),1);
-samplingrates = zeros(length(Data),1);
+samplingrates = cell(length(Data),1);
 timeres = zeros(length(Data),1);
 freq = zeros(length(Data),1);
-datalengths = zeros(length(Data),1);
+datalengths = cell(length(Data),1);
+durations = cell(length(Data),1);
 segmentinds = cell(length(Data),1);
-
-
-issegmented = false;
+segmenteddata = cell(length(Data),1);
+segmentedts = cell(length(Data),1);
+segmenteddatapoints = cell(length(Data),1);
 
 % High level input data checking.
 for i=1:length(Data)
@@ -46,18 +47,45 @@ for i=1:length(Data)
     % Identifying average gap between data points
     ts_diffs{i} = diff(double(Data{i}.MetaTags.Timestamp));
 
-    % Calculate the total PTP time, number of samples, resolutionn, and
-    % sampling frequency of each recording
-    ts_sums(i) = sum(ts_diffs{i});
-    datalengths(i) = length(Data{i}.Data);
+    % Extract the claimed resolution and sampling frequency of each
+    % recording
     timeres(i) = double(Data{i}.MetaTags.TimeRes);
     freq(i) = double(Data{i}.MetaTags.SamplingFreq);
 
-    % Calculate the ratio between time gaps and expected time gap based on
-    % the sampling rate of the recording. A recording where the claimed
-    % sampling rate and true sampling rate based off PTP time will have a
-    % ratio of 1;
-    samplingrates(i) = mean(ts_diffs{i}/(timeres(i)/freq(i)));
+    % Clock drift patch kills ability to segment files. This check will
+    % allow segments to be reintroduced into the data structures if a
+    % timestamp difference of 110% greater than expected is identified
+    segmentinds{i} = find([ts_diffs{i}(1) ts_diffs{i}] > (timeres(i)/freq(i) + timeres(i)/freq(i)/10));
+    segmenteddata{i} = cell(length(segmentinds{i})+1,1);
+    segmentedts{i} = cell(length(segmentinds{i})+1,1);
+    if ~isempty(segmentinds{i})
+        for ii = 1:length(segmentinds{i})+1
+            if ii == 1
+                inds = 1:segmentinds{i}(ii)-1;
+            elseif ii <= length(segmentinds{i})
+                inds = segmentinds{i}(ii-1):segmentinds{i}(ii)-1;
+            else
+                inds = segmentinds{i}(ii-1):length(Data{i}.Data);
+            end
+            segmenteddata{i}{ii} = Data{i}.Data(:,inds);
+            segmentedts{i}{ii} = Data{i}.MetaTags.Timestamp(:,inds);
+            datalengths{i}(ii) = length(inds);
+            durations{i}(ii) = segmentedts{i}{ii}(end)- segmentedts{i}{ii}(1);
+
+            % Calculate the ratio between time gaps and expected time gap 
+            % based on the sampling rate of the recording. A recording
+            % where the claimed sampling rate and true sampling rate based
+            % off PTP time will have a ratio of 1;
+            samplingrates{i}(ii) = mean(diff(segmentedts{i}{ii})/(timeres(i)/freq(i)));
+        end
+    else
+        segmenteddata{i} = Data{i}.Data;
+        segmentedts{i} = Data{i}.MetaTags.Timestamp;
+        datalengths{i} = length(Data{i}.Data);
+        durations{i} = segmentedts{i}(end) - segmentedts{i}(1);
+        samplingrates{i} = mean(ts_diffs{i})/(timeres(i)/freq(i));
+    end
+
 end
 
 if length(fnames) ~= length(unique(fnames))
@@ -66,108 +94,127 @@ end
 
 
 %% Perform drift correction
-% identify the file that has the densest recording, i.e. identify which
+% Identify the file that has the densest recording, i.e. identify which
 % file has the lowest sampling ratio. This file's data will not be
 % affected by adding samples to it and will serve as the base for adding
 % samples to the other structures.
-[~, s] = min(samplingrates);
+msamplingrates = mean(cell2mat(samplingrates),2);
+[~, s] = min(msamplingrates);
 
 % Number of necessary added samples depends on the sampling rate.
 % Normalization factor is here.
 normfactor = zeros(length(Data),1);
-indgap = cell(length(Data),1);
+tempdata = cell(length(Data),1);
+tempts = cell(length(Data),1);
+tempdatapoints = cell(length(Data),1);
 basefreq = freq(s);
+
+
 for j=1:length(Data)
-    normfactor(j) = freq(j)/basefreq;
-    if j~=s
-        % Calculate the number of samples that should be added
-        addedsamples = floor(abs(1-samplingrates(j))*datalengths(j)*normfactor(j)-abs(1-samplingrates(s))*datalengths(s)*normfactor(s));
-        
-        % It is possible that the above caluclation can be off if the
-        % recording started on one file several samples before or after the
-        % base file. This corrects for the start time mismatches.
-        
-        if ts_sums(j) > ts_sums(s) % If the total time is > to base
-            % Remove some samples
-            addedsamples = floor((addedsamples/normfactor(j) - abs((ts_sums(j) - ts_sums(s)) / (timeres(j)/freq(j)))));
-
-        elseif ts_sums(j) < ts_sums(s) % else if its < than base
-            % Add some samples
-            addedsamples = floor((addedsamples/normfactor(j) + abs((ts_sums(j) - ts_sums(s)) / (timeres(j)/freq(j)))));
-        end
-
-        % Establish where the extra points should be added
-        gap = floor(datalengths(j)/(abs(addedsamples)));
-
-        % Repeat values in the struct. Simply repeat the data frame on the
-        % indices identified above.
-        tempdata = [];
-        tempts = [];
-        startind = 1;
-        indgap{j} = [];
-        while startind < datalengths(j)
-            % Error correction for overflow beyond the .Data length
-            if startind+gap < datalengths(j)
-                tempts = [tempts ts_PTP{j}(startind:startind+gap)];
-                tempdata = [tempdata Data{j}.Data(:,startind:(startind+gap))];
-            else
-                tempts = [tempts ts_PTP{j}(startind:end)];
-                tempdata = [tempdata Data{j}.Data(:,startind:end)];
-            end
-            indgap{j} = [indgap{j} length(tempdata)];
-            startind = startind + gap;
-        end
-    else
-        tempts = Data{j}.MetaTags.Timestamp;
-        tempdata = Data{j}.Data;
-    end
-
-    ts_diffs_post = diff(tempts);
-
-    % Clock drift patch kills ability to segment files. This check will
-    % allow segments to be reintroduced into the data structures if a
-    % timestamp difference of 110% greater than expected is identified
-    segmentinds{j} = find(ts_diffs_post > timeres(j)/freq(j) + timeres(j)/freq(j)/10);
-    
-    % Correct for corner case where the added sample is directly on top
-    % of the same index where a segment needs to occur.
-    while sum(ismember(segmentinds{j},indgap{j})) > 0
-        for seg = 1:length(segmentinds{j})
-            if sum(cell2mat(indgap{j}) == segmentinds{j}(seg)) > 0
-                segmentinds{j}(seg) = segmentinds{j}(seg) + 1;
-            end
-        end
-    end
-
-    % Remove affected elements from the structure and replace it with the
-    % proper temporary elements.
+    % Remove affected elements from the structure
     Data{j} = rmfield(Data{j},'Data');
     Data{j}.MetaTags = rmfield(Data{j}.MetaTags,{'Timestamp','DataPoints','DataDurationSec','DataPointsSec'});
-
-    if ~isempty(segmentinds{j})
-        Data{j}.MetaTags.Timestamp = [tempts(1), tempts(segmentinds{j})];
-        Data{j}.MetaTags.DataPoints = [segmentinds{j} length(tempdata)-segmentinds{j}(end)];
-        Data{j}.MetaTags.DataDurationSec = floor(Data{j}.MetaTags.DataPoints/freq(j));
-        Data{j}.MetaTags.DataPointsSec = floor(Data{j}.MetaTags.DataPoints/freq(j));
-        segmenttemp = cell(1,length(segmentinds{j})+1);
-        for jj=1:length(segmentinds{j})
-            if jj==1
-                segmenttemp{jj} = tempdata(:,1:segmentinds{j}(jj));
-            elseif jj<length(segmentinds{j})
-                segmenttemp{jj} = tempdata(:,segmentinds{j}(jj):segmentinds{j}(jj+1));
-            else
-                segmenttemp{jj} = tempdata(:,segmentinds{j}(jj):end);
+    normfactor(j) = freq(j)/basefreq;
+    startind = 1;
+    if j~=s
+        if length(samplingrates{j}) > 1
+            for jj = 1:length(samplingrates{j})
+                startind = 1;
+                % Calculate the number of samples that should be added
+                addedsamples = round(abs(1-samplingrates{j}(jj))*datalengths{j}(jj)*normfactor(j)-abs(1-samplingrates{s}(jj))*datalengths{s}(jj)*normfactor(s));
+                
+                % It is possible that the above caluclation can be off if the
+                % recording started on one file several samples before or after the
+                % base file. This corrects for the start time mismatches.
+                
+                if durations{j}(jj) > durations{s}(jj) % If the total time is > to base
+                    % Remove some samples
+                    addedsamples = round((addedsamples/normfactor(j) - abs((durations{j}(jj) - durations{s}(jj)) / (timeres(j)/freq(j)))));
+        
+                elseif durations{j}(jj) < durations{s}(jj) % else if its < than base
+                    % Add some samples
+                    addedsamples = round((addedsamples/normfactor(j) + abs((durations{j}(jj) - durations{s}(jj)) / (timeres(j)/freq(j)))));
+                end
+        
+                % Establish where the extra points should be added
+                gap = round(datalengths{j}(jj)/(abs(addedsamples)+1));
+        
+                % Repeat values in the struct. Simply repeat the data frame on the
+                % indices identified above.
+                tempts{j}{jj} = segmentedts{j}{jj}(1);
+                tempdata{j}{jj} = [];
+                while startind < datalengths{j}(jj)
+                    % Error correction for overflow beyond the .Data length
+                    if startind+gap < datalengths{j}(jj)
+                        tempdata{j}{jj} = [tempdata{j}{jj} segmenteddata{j}{jj}(:,startind:(startind+gap))];
+                    else
+                        tempdata{j}{jj} = [tempdata{j}{jj} segmenteddata{j}{jj}(:,startind:end)];
+                    end
+                    startind = startind + gap;
+                end
             end
-            Data{j}.Data{jj} = segmenttemp{jj};
+        else
+            % Calculate the number of samples that should be added
+            addedsamples = round(abs(1-samplingrates{j})*datalengths{j}*normfactor(j)-abs(1-samplingrates{s})*datalengths{s}*normfactor(s));
+            
+            % It is possible that the above caluclation can be off if the
+            % recording started on one file several samples before or after the
+            % base file. This corrects for the start time mismatches.
+            
+            if durations{j} > durations{s} % If the total time is > to base
+                % Remove some samples
+                addedsamples = round((addedsamples/normfactor(j) - abs((durations{j} - durations{s}) / (timeres(j)/freq(j)))));
+    
+            elseif durations{j} < durations{s} % else if its < than base
+                % Add some samples
+                addedsamples = round((addedsamples/normfactor(j) + abs((durations{j} - durations{s}) / (timeres(j)/freq(j)))));
+            end
+    
+            % Establish where the extra points should be added
+            gap = round(datalengths{j}/(abs(addedsamples+1)));
+    
+            % Repeat values in the struct. Simply repeat the data frame on the
+            % indices identified above.
+            tempts{j} = segmentedts{j}(1); 
+            tempdata{j} = [];
+            tempdatapoints{j} = [];
+            while startind < datalengths{j}
+                % Error correction for overflow beyond the .Data length
+                if startind+gap < datalengths{j}
+                    tempdata{j} = [tempdata{j} segmenteddata{j}(:,startind:(startind+gap))];
+                else
+                    tempdata{j} = [tempdata{j} segmenteddata{j}(:,startind:end)];
+                end
+                startind = startind + gap;
+            end
         end
     else
-        Data{j}.Data = tempdata;
-        Data{j}.MetaTags.Timestamp = [tempts(1)];
-        Data{j}.MetaTags.DataPoints = length(tempdata);
-        Data{j}.MetaTags.DataDurationSec = floor(length(tempdata)/freq(j));
-        Data{j}.MetaTags.DataPointsSec = floor(length(tempdata)/freq(j));
+        if length(samplingrates{j}) > 1
+            for jj = 1:length(samplingrates)
+                tempts{j}{jj} = segmentedts{j}{jj}(1);
+                tempdata{j}{jj} = segmenteddata{j}{jj};
+            end
+        else
+            tempts{j} = segmentedts{j}(1);
+            tempdata{j} = segmenteddata{j};
+        end
     end
-
+    Data{j}.Data = tempdata{j};
+    if iscell(tempts{j})
+        for jj = 1:length(tempts{j})
+            Data{j}.MetaTags.Timestamp(jj) = tempts{j}{jj}(1);
+            Data{j}.MetaTags.DataPoints(jj) = length(Data{j}.Data{jj});
+            Data{j}.MetaTags.DataDurationSec(jj) = floor(length(Data{j}.Data{jj})/freq(j));
+            Data{j}.MetaTags.DataPointsSec(jj) = floor(length(Data{j}.Data{jj})/freq(j));
+        end
+    else
+        Data{j}.MetaTags.Timestamp = tempts{j}(1);
+        Data{j}.MetaTags.DataPoints = length(Data{j}.Data);
+        Data{j}.MetaTags.DataDurationSec = floor(length(Data{j}.Data)/freq(j));
+        Data{j}.MetaTags.DataPointsSec = floor(length(Data{j}.Data)/freq(j));
+    end
+    
+    
 end
 
 structout1 = Data{1};
