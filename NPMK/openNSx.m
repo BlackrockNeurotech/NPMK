@@ -650,6 +650,7 @@ if NSx.MetaTags.TimeRes > 1e5
         isPTP = true;
     end
 end
+fseek(FID, f.EOexH, 'bof');
 
 %% Reading all data headers and calculating all the file pointers for data
 % and headers
