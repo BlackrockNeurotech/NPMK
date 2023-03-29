@@ -108,9 +108,14 @@ function varargout = openNSx(varargin)
 %                 the version number of the function without reading any
 %                 data files.
 %
-%   'nozeropad':  It will not zeropad the data to compensate foro the non-
-%                 zero start time.
-%                 DEFAULT: zeropads the loaded data.
+%   'zeropad':  It will zeropad the data to compensate for the non-zero 
+%               start time.
+%                 DEFAULT: does not zeropad the loaded data.
+%
+%   'noalign':  Removes the application of the function "samplealign" to
+%               outputs where bug fix for clock drift in Central release
+%               7.6.0 was applied.
+%                 DEFAULT: alignment occurs with warnings
 %
 %   OUTPUT:       Contains the NSx structure.
 %
@@ -285,6 +290,9 @@ function varargout = openNSx(varargin)
 %   - Fixed a minor bug for when the data header is not written properly
 %     and the data needs to be used to calculate the data length.
 %
+% 7.4.4.0: April 1, 2023
+%   - Accounts for many segments in files for clock drift correction
+%   - Changed 'zeropad' default behavior to be 'no'
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -295,7 +303,7 @@ NSx.MetaTags = struct('FileTypeID',[],'SamplingLabel',[],'ChannelCount',[],'Samp
                       'FileExt', []);
 
                                     
-NSx.MetaTags.openNSxver = '7.4.3.0';
+NSx.MetaTags.openNSxver = '7.4.4.0';
                   
 %% Check for the latest version fo NPMK
 NPMKverChecker
@@ -329,10 +337,12 @@ for i=1:length(varargin)
         ReadData = inputArgument;
     elseif strcmpi(inputArgument, 'nomultinsp')
         multinsp = 'no';
-    elseif strcmpi(inputArgument, 'nozeropad')
-        zeropad = 'no';
+    elseif strcmpi(inputArgument, 'zeropad')
+        zeropad = 'yes';
     elseif strcmpi(inputArgument, 'uV')
         waveformUnits = 'uV';
+    elseif strcmpi(inputArgument, 'noalign')
+        align = false;
     elseif strcmpi(inputArgument, 'read')
         ReadData = inputArgument;
     elseif (strncmp(inputArgument, 't:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'duration')
@@ -475,7 +485,8 @@ if ~exist('skipFactor', 'var');    skipFactor = 1; end
 if ~exist('modifiedTime', 'var');  modifiedTime = 0; end
 if ~exist('multinsp', 'var');      multinsp = 'yes'; end
 if ~exist('waveformUnits', 'var'); waveformUnits = 'raw'; end
-if ~exist('zeropad', 'var');       zeropad = 'yes'; end
+if ~exist('zeropad', 'var');       zeropad = 'no'; end
+if ~exist('noalign', 'var');       align = true; end
 
 % Check to see if 512 setup and calculate offset
 if strcmpi(multinsp, 'yes')
@@ -1037,6 +1048,11 @@ if strcmp(Report, 'report')
     disp(['Sample Frequency   = '  num2str(double(NSx.MetaTags.SamplingFreq))]);
     disp(['Electrodes Read    = '  num2str(double(NSx.MetaTags.ChannelCount))]);
     disp(['Data Point Read    = '  num2str(size(NSx.Data,2))]);
+end
+
+%% Adding implementation of samplealign for cases where it is needed
+if isPTP && align
+    NSx = samplealign(NSx);
 end
 
 %% If user does not specify an output argument it will automatically create

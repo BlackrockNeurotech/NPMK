@@ -142,6 +142,7 @@ for j=1:nargin
             % Repeat frames when samples need to be added. Delete frames
             % when samples need to be taken away.
             if addedsamples > 0
+                warning('%i samples added to %s segment %i', addedsamples, [Data{j}.MetaTags.Filename Data{j}.MetaTags.FileExt], jj)
                 while startind < datalengths{j}(jj)
                     % Error correction for overflow beyond the .Data length
                     if startind+gap < datalengths{j}(jj)
@@ -152,6 +153,7 @@ for j=1:nargin
                     startind = startind + gap;
                 end
             elseif addedsamples < 0
+                warning('%i samples removed from %s segment %i', addedsamples, [Data{j}.MetaTags.Filename Data{j}.MetaTags.FileExt], jj)
                 while startind < datalengths{j}(jj)
                     % Error correction for overflow beyond the .Data length
                     if startind+gap < datalengths{j}(jj)
@@ -176,6 +178,7 @@ for j=1:nargin
         tempdata{j} = [];
         
         if addedsamples > 0
+            warning('%i samples added to %s', addedsamples, [Data{j}.MetaTags.Filename Data{j}.MetaTags.FileExt])
             while startind < datalengths{j}
                 if startind+gap < datalengths{j}
                     tempdata{j} = [tempdata{j} segmenteddata{j}(:,startind:(startind+gap))];
@@ -185,6 +188,7 @@ for j=1:nargin
                 startind = startind + gap;
             end
         elseif addedsamples < 0
+            warning('%i samples removed from %s', addedsamples, [Data{j}.MetaTags.Filename Data{j}.MetaTags.FileExt])
             while startind < datalengths{j}
                 if startind+gap < datalengths{j}
                     tempdata{j} = [tempdata{j} segmenteddata{j}(:,startind:(startind+gap-1))];
