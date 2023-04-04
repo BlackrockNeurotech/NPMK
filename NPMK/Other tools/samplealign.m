@@ -153,7 +153,7 @@ for j=1:nargin
                     startind = startind + gap;
                 end
             elseif addedsamples < 0
-                warning('%i samples removed from %s segment %i', addedsamples, [Data{j}.MetaTags.Filename Data{j}.MetaTags.FileExt], jj)
+                warning('%i samples removed from %s segment %i', abs(addedsamples), [Data{j}.MetaTags.Filename Data{j}.MetaTags.FileExt], jj)
                 while startind < datalengths{j}(jj)
                     % Error correction for overflow beyond the .Data length
                     if startind+gap < datalengths{j}(jj)
@@ -188,7 +188,7 @@ for j=1:nargin
                 startind = startind + gap;
             end
         elseif addedsamples < 0
-            warning('%i samples removed from %s', addedsamples, [Data{j}.MetaTags.Filename Data{j}.MetaTags.FileExt])
+            warning('%i samples removed from %s', abs(addedsamples), [Data{j}.MetaTags.Filename Data{j}.MetaTags.FileExt])
             while startind < datalengths{j}
                 if startind+gap < datalengths{j}
                     tempdata{j} = [tempdata{j} segmenteddata{j}(:,startind:(startind+gap-1))];

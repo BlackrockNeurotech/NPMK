@@ -486,7 +486,7 @@ if ~exist('modifiedTime', 'var');  modifiedTime = 0; end
 if ~exist('multinsp', 'var');      multinsp = 'yes'; end
 if ~exist('waveformUnits', 'var'); waveformUnits = 'raw'; end
 if ~exist('zeropad', 'var');       zeropad = 'no'; end
-if ~exist('noalign', 'var');       align = true; end
+if ~exist('align', 'var');         align = true; end
 
 % Check to see if 512 setup and calculate offset
 if strcmpi(multinsp, 'yes')
@@ -955,6 +955,10 @@ NSx.MetaTags.ChannelID(channelIDToDelete) = [];
 if strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP') && strcmpi(zeropad, 'yes')
     NPMKSettings = settingsManager;
     if NSx.MetaTags.Timestamp(1) > 30000 && NPMKSettings.ShowZeroPadWarning == 1
+        if isPTP
+            error('PTP time has nanosecond precision. Data will generate too many zeros with "zeropad" argument.\n%s',...
+                'Align data instead using NSx.MetaTags.Timestamp. Contact Blackrock Support for help adjusting your analysis workflows.');
+        end
         disp(' ');
         disp('You have chosen to zeropad the NSx file that contains a large timestamp gap.');
         disp('For more information please refer to our <a href = "https://support.blackrockmicro.com/portal/en/kb/articles/nozeropad-in-opennsx">knowledge base article</a> on this subject.');
@@ -999,9 +1003,6 @@ if ~NSx.RawData.PausedFile && StartPacket == 1 && strcmpi(zeropad, 'yes') && ~is
         NSx.MetaTags.DataPoints = size(NSx.Data,2);
         NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints / NSx.MetaTags.SamplingFreq;
     end
-elseif strcmpi(zeropad, 'yes') && isPTP
-    error('PTP time has nanosecond precision. Data will generate too many zeros without "nozeropad" argument.\n%s',...
-        'Align data instead using NSx.MetaTags.Timestamp. Contact Blackrock Support for help adjusting your analysis workflows.');
 end
 
 
