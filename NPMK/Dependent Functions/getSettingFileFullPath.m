@@ -20,6 +20,8 @@ if ~isempty(settingFileFullPath)
     settingFilePath = fileparts(settingFileFullPath);
     if ismac || isunix
         settingFileFullPath = [settingFilePath '/' functionName '.ini'];
+    elseif isunix
+        settingFileFullPath = [settingFilePath '/' functionName '.ini'];
     else
         settingFileFullPath = [settingFilePath '\' functionName '.ini'];
     end
