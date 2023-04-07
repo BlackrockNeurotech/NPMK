@@ -365,7 +365,7 @@ if Paused == 0
 elseif Paused == 1
     for SegmentNumber = 1:NumberOfSegments
         %Header
-        fwrite(FileID, NSx.RawData.DataHeader(1+9*(SegmentNumber-1)));
+        fwrite(FileID, 1, 'uint8');
         %Timestamp
         fwrite(FileID, NSx.MetaTags.Timestamp(SegmentNumber),tspres);
         %Number of data points
