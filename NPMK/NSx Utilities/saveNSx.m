@@ -2,7 +2,7 @@ function saveNSx(NSx,varargin)
 
 %% 
 % Save an .NSx file from an NSx structure (gained by using openNSx)
-% Works with file spec 2.3
+% Works with file spec 2.3 and 3.0
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Use: saveNSx(NSx,optionalinputarguments)
 %   NSx:        The NSx data structure.
@@ -18,9 +18,9 @@ function saveNSx(NSx,varargin)
 if not(isempty(varargin))
     FilePath = varargin{1};
 else
-    FilePath = [fullfile(NSx.MetaTags.FilePath,NSx.MetaTags.Filename) NSx.MetaTags.FileExt];
-    [File,Path] = uiputfile;
-    FilePath = [fullfile(Path,NSx.MetaTags.Filename(1:end)),'-modified',  NSx.MetaTags.FileExt];
+    FilePath = [fullfile(NSx.MetaTags.FilePath,NSx.MetaTags.Filename) '-modified' NSx.MetaTags.FileExt];
+%     [File,Path] = uiputfile;
+%     FilePath = [fullfile(Path,NSx.MetaTags.Filename(1:end)),'-modified',  NSx.MetaTags.FileExt];
 end
 
 
@@ -36,7 +36,7 @@ end
 %%
 % Write the basic header into the file
 %FullFile
-Debug = 1;
+Debug = 0;
 
 if exist(FilePath)
         if exist(FilePath)
@@ -77,11 +77,17 @@ elseif Paused == 0
     [NumberOfChannels,LengthOfData] = size(NSx.Data);
 end
 
-
+%Identify filespec
+fspec = NSx.MetaTags.FileTypeID(1:8);
+if strcmp(fspec,'BRSMPGRP')
+    tspres = 'uint64';
+else
+    tspres = 'uint32';
+end
 
 %File Type ID
     Before = 0;
-    fwrite(FileID,NSx.MetaTags.FileTypeID(1:8));
+    fwrite(FileID,fspec);
     After = ftell(FileID);
     if After-Before ~= 8 && Debug == 1
         disp('error FildID')
@@ -347,11 +353,10 @@ if Paused == 0
     %Header
     fwrite(FileID, NSx.RawData.DataHeader(1));
     %Timestamp
-    fwrite(FileID, NSx.MetaTags.Timestamp,'uint32');
+    fwrite(FileID, NSx.MetaTags.Timestamp,tspres);
     %Number of data points
     fwrite(FileID, LengthOfData, 'uint32');
 
-    TotalDataPoints = LengthOfData * NumberOfChannels;
     %for i = 1:TotalDataPoints
     %Data points
     %fwrite(FileID, NSx.Data(i),'int16');
@@ -360,13 +365,12 @@ if Paused == 0
 elseif Paused == 1
     for SegmentNumber = 1:NumberOfSegments
         %Header
-        fwrite(FileID, NSx.RawData.DataHeader(1+9*(SegmentNumber-1)));
+        fwrite(FileID, 1, 'uint8');
         %Timestamp
-        fwrite(FileID, NSx.MetaTags.Timestamp(SegmentNumber),'uint32');
+        fwrite(FileID, NSx.MetaTags.Timestamp(SegmentNumber),tspres);
         %Number of data points
         fwrite(FileID, LengthOfData{SegmentNumber}, 'uint32');
 
-        TotalDataPoints = LengthOfData{SegmentNumber} * NumberOfChannels;
         %for i = 1:TotalDataPoints
         %Data points
         %fwrite(FileID, NSx.Data(i),'int16');

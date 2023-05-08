@@ -1,0 +1,11 @@
+# Initialization settings
+*.ini
+
+# Autosaved versions
+*.asv
+
+# NPMK settings
+*.npmk
+
+# Executables
+*.exe
