@@ -208,14 +208,14 @@ for j=1:nargin
         for jj = 1:length(tempts{j})
             Data{j}.MetaTags.Timestamp(jj) = tempts{j}{jj}(1);
             Data{j}.MetaTags.DataPoints(jj) = length(Data{j}.Data{jj});
-            Data{j}.MetaTags.DataDurationSec(jj) = floor(length(Data{j}.Data{jj})/freq(j));
-            Data{j}.MetaTags.DataPointsSec(jj) = floor(length(Data{j}.Data{jj})/freq(j));
+            Data{j}.MetaTags.DataDurationSec(jj) = length(Data{j}.Data{jj})/freq(j);
+            Data{j}.MetaTags.DataPointsSec(jj) = length(Data{j}.Data{jj})/freq(j);
         end
     else
         Data{j}.MetaTags.Timestamp = tempts{j}(1);
         Data{j}.MetaTags.DataPoints = length(Data{j}.Data);
-        Data{j}.MetaTags.DataDurationSec = floor(length(Data{j}.Data)/freq(j));
-        Data{j}.MetaTags.DataPointsSec = floor(length(Data{j}.Data)/freq(j));
+        Data{j}.MetaTags.DataDurationSec = length(Data{j}.Data)/freq(j);
+        Data{j}.MetaTags.DataPointsSec = length(Data{j}.Data)/freq(j);
     end
     
     
