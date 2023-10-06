@@ -4,15 +4,15 @@ function varargout = openNEV(varargin)
 %
 % Opens an .nev file for reading, returns all file information in a NEV
 % structure. Works with File Spec 2.1 & 2.2 & 2.3 & 3.0.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
-% Use OUTPUT = openNEV(fname, 'noread', 'report', 'noparse', 'nowarning', 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Use OUTPUT = openNEV(fname, 'noread', 'report', 'noparse', 'nowarning',
 %                             'nosave', 'nomat', 'uV', 'overwrite', 'direct').
-% 
+%
 % NOTE: All input arguments are optional. Input arguments may be in any order.
 %
 %   fname:        Name of the file to be opened. If the fname is omitted
-%                 the user will be prompted to select a file using an open 
-%                 file user interface. 
+%                 the user will be prompted to select a file using an open
+%                 file user interface.
 %                 DEFAULT: Will open Open File UI.
 %
 %   'noread':     Will not read the spike waveforms if user passes this argument.
@@ -70,24 +70,24 @@ function varargout = openNEV(varargin)
 %   'direct':     Use this if you are using a CerePlex Direct system
 %                 without the typical strobe mode. This will treat the 16th
 %                 bit of the digital input as a strobe signal and report
-%                 the remaining 15 bits as the digital input value. 
+%                 the remaining 15 bits as the digital input value.
 %
 %   OUTPUT:       Contains the NEV structure.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%   USAGE EXAMPLE: 
-%   
+%   USAGE EXAMPLE:
+%
 %   openNEV('report','read');
 %
 %   In the example above, the file dialogue will prompt for a file. A
 %   report of the file contents will be shown. The digital data will not be
-%   parsed. The data needs to be in the proper format (refer below). The 
+%   parsed. The data needs to be in the proper format (refer below). The
 %   spike waveforms are in raw units and not in uV.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   DIGITAL PARAMETERS/MARKERS FORMAT:
 %
-%   In order for this function to parse your experimental parameters they 
+%   In order for this function to parse your experimental parameters they
 %   need to be in the following format:
 %
 %   *ParamLabel:Parameter1=value1;Parameter2=value2;Parameter3=value3;#
@@ -97,11 +97,11 @@ function varargout = openNEV(varargin)
 %
 %   *Stimulation:StimCount=5;Duration=10;#
 %
-%   In the first example, the parameter is of type "ExpParameter". The 
-%   parameters are, "Intensity, Duration, Trials, and PageSement." The 
+%   In the first example, the parameter is of type "ExpParameter". The
+%   parameters are, "Intensity, Duration, Trials, and PageSement." The
 %   values of those parameters are, "1.02, 400, 1, and 14," respectively.
 %   The second example is of type "Stimulation". The name of the parameters
-%   are "StimCount" and "Duration" and the values are "5" and "10" 
+%   are "StimCount" and "Duration" and the values are "5" and "10"
 %   respectively.
 %   -----------------------------------------------------------------------
 %   It can also read single value markers that follow the following format.
@@ -110,7 +110,7 @@ function varargout = openNEV(varargin)
 %
 %   EXAMPLES:  *WaitSeconds=10;# OR  *JuiceStatus=ON;#
 %
-%   The above line is a "Marker". The marker value is 10 in the first 
+%   The above line is a "Marker". The marker value is 10 in the first
 %   and it's ON in the second example.
 %   -----------------------------------------------------------------------
 %   Moreover, the marker could be a single value:
@@ -126,9 +126,9 @@ function varargout = openNEV(varargin)
 %   with a semi-colon ';'.
 %
 %   NOTE:
-%   Every line requires a pound-sign '#' at the very end. 
+%   Every line requires a pound-sign '#' at the very end.
 %   Every line requires a star sign '*' at the very beginning. If you
-%   use LabVIEW SendtoCerebus.vi by Kian Torab then there is no need for 
+%   use LabVIEW SendtoCerebus.vi by Kian Torab then there is no need for
 %   a '*' in the beginning.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -139,7 +139,7 @@ function varargout = openNEV(varargin)
 % Version History
 %
 % 4.4.0.0:
-%   - Major performance boost in reading NEV files when tracking data is 
+%   - Major performance boost in reading NEV files when tracking data is
 %   stored in the file.
 %
 % 4.4.0.2:
@@ -214,7 +214,7 @@ function varargout = openNEV(varargin)
 % 6.0.0.0: January 27, 2020
 %   - Added support for 64-bit timestamps in NEV and NSx.
 %   - Removed dependency on MATLAB R2016b by removing function 'contains'.
-% 
+%
 % 6.1.0.0: April 16, 2020
 %   - Some bug fixes. (David Kluger)
 %
@@ -335,13 +335,13 @@ end; clear i;
 %% Defining and validating variables
 if ~exist('fileFullPath', 'var')
     if exist('getFile.m', 'file') == 2
-        [fileName pathName] = getFile('*.nev;*.nevm', 'Choose a NEV file...');
+        [fileName pathName] = getFile('*.nev*', 'Choose a NEV file...');
     else
         [fileName pathName] = uigetfile;
     end
     fileFullPath = [pathName fileName];
-    if fileFullPath==0; 
-        clear variables; 
+    if fileFullPath==0;
+        clear variables;
         if nargout
             varargout{1} = [];
         end
@@ -389,7 +389,7 @@ if strcmpi(Flags.MultiNSP, 'multinsp')
 end
 
 %%  Validating existance of parseCommand
-if strcmpi(Flags.ParseData, 'parse') 
+if strcmpi(Flags.ParseData, 'parse')
     if exist('parseCommand.m', 'file') ~= 2
         disp('This version of openNEV requires function parseCommand.m to be placed in path.');
         clear variables;
@@ -407,7 +407,7 @@ matPath = [fileFullPath(1:end-4) '.mat'];
 if exist(matPath, 'file') == 2 && strcmpi(Flags.NoMAT, 'yesmat') && strcmpi(Flags.WarningStat, 'warning')
     disp('MAT file corresponding to selected NEV file already exists. Loading MAT instead...');
     load(matPath);
-    NEV.MetaTags.FilePath = fileFullPath;    
+    NEV.MetaTags.FilePath = fileFullPath;
     if isempty(NEV.Data.Spikes.Waveform) && strcmpi(Flags.ReadData, 'read') && strcmpi(Flags.WarningStat, 'warning')
         disp('The MAT file does not waveforms. Loading NEV instead...');
     else
@@ -498,7 +498,7 @@ for ii=1:Trackers.countExtHeader
             NEV.ElectrodesInfo(ElectrodeID).ConnectorBank   = char(ExtendedHeader(11)+64);
             NEV.ElectrodesInfo(ElectrodeID).ConnectorPin    = ExtendedHeader(12);
             df   = typecast(ExtendedHeader(13:14),'int16');
-            % This is a workaround for the DigitalFactor overflow in NEV 
+            % This is a workaround for the DigitalFactor overflow in NEV
             % files. Remove once Central is updated
             if df == 21516
                 NEV.ElectrodesInfo(ElectrodeID).DigitalFactor = 152592.547;
@@ -529,8 +529,8 @@ for ii=1:Trackers.countExtHeader
             Mode                    = ExtendedHeader(25);
             NEV.IOLabels{Mode+1}    = char(ExtendedHeader(9:24).');
             clear Mode;
-        case 'NSASEXEV' %% Not implemented in the Cerebus firmware. 
-                        %% Needs to be updated once implemented into the 
+        case 'NSASEXEV' %% Not implemented in the Cerebus firmware.
+                        %% Needs to be updated once implemented into the
                         %% firmware by Blackrock Microsystems.
             NEV.NSAS.Freq          = typecast(ExtendedHeader(9:10),'uint16');
             NEV.NSAS.DigInputConf  = char(ExtendedHeader(11));
@@ -566,7 +566,7 @@ for ii=1:Trackers.countExtHeader
             disp(['PacketID ' PacketID ' is invalid.']);
             disp('Please make sure this version of openNEV is compatible with your current NSP firmware.')
             fclose(FID);
-            clear variables; 
+            clear variables;
             if nargout
                 varargout{1} = [];
             end
@@ -682,7 +682,7 @@ digserTimestamp            = Timestamp(digserIndices);
 NEV.Data.Spikes.TimeStamp  = Timestamp(neuralIndices);
 NEV.Data.Spikes.Electrode  = PacketIDs(neuralIndices);
 clear PacketIDs;
-NEV.Data.Spikes.Unit       = tempClassOrReason(neuralIndices); 
+NEV.Data.Spikes.Unit       = tempClassOrReason(neuralIndices);
 %clear neuralIndices;
 NEV.Data.SerialDigitalIO.InsertionReason   = tempClassOrReason(digserIndices);
 clear tempClassOrReason;
@@ -698,7 +698,7 @@ if strcmpi(Flags.ReadData, 'read')
                                   logEventPacketIDIndices,...
                                   reconfigPacketIDIndices,...
                                   recEventPacketIDIndices];
-      
+
     if ~isempty(allExtraDataPacketIndices) % if there is any extra packets
         fseek(FID, Trackers.fExtendedHeader, 'bof');
         fseek(FID, (Trackers.readPackets(1)-1) * Trackers.countPacketBytes, 'cof');
@@ -715,7 +715,7 @@ if strcmpi(Flags.ReadData, 'read')
             NEV.Data.Comments.TimeStampStarted = tempTimeStampStarted(orderOfTS); clear tempTimeStampStarted;
             tempText = char(tRawData(timeStampBytes+9:Trackers.countPacketBytes, commentIndices).');
             NEV.Data.Comments.Text  = tempText(orderOfTS,:); clear tempText;
-            
+
             % Transferring NeuroMotive Events to its own structure
             neuroMotiveEvents = find(NEV.Data.Comments.CharSet == 255);
             NEV.Data.TrackingEvents.TimeStamp = NEV.Data.Comments.TimeStamp(neuroMotiveEvents);
@@ -737,12 +737,12 @@ if strcmpi(Flags.ReadData, 'read')
             NEV.Data.Comments.TimeStampStartedSec = double(NEV.Data.Comments.TimeStampStarted)/double(NEV.MetaTags.TimeRes);
             NEV.Data.Comments.Text(neuroMotiveEvents,:) = [];
             colorFlag(neuroMotiveEvents) = [];
-            
+
             % Figuring out the text color of the comments that had color
             NEV.Data.Comments.Color = dec2hex(NEV.Data.Comments.TimeStampStarted);
             NEV.Data.Comments.Color(colorFlag == 1,:) = repmat('0', size(NEV.Data.Comments.Color(colorFlag == 1,:)));
-            NEV.Data.Comments.TimeStampStarted(colorFlag == 0) = NEV.Data.Comments.TimeStamp(colorFlag == 0);            
-            
+            NEV.Data.Comments.TimeStampStarted(colorFlag == 0) = NEV.Data.Comments.TimeStamp(colorFlag == 0);
+
             clear commentIndices;
         end
         if ~isempty(videoSyncPacketIDIndices)
@@ -770,10 +770,10 @@ if strcmpi(Flags.ReadData, 'read')
             tmp.NodeCount     = typecast(tmp.NodeCount(:), 'uint16').';
             tmp.MarkerCount   = tRawData(timeStampBytes+9:timeStampBytes+10, trackingPacketIDIndices);
             tmp.MarkerCount   = typecast(tmp.MarkerCount(:), 'uint16').';
-            
+
             tmp.rigidBodyPoints = tRawData(timeStampBytes+11:NEV.MetaTags.PacketBytes, trackingPacketIDIndices);
             tmp.rigidBodyPoints = reshape(typecast(tmp.rigidBodyPoints(:), 'uint16'), size(tmp.rigidBodyPoints, 1)/2, size(tmp.rigidBodyPoints, 2));
-            
+
             if (isfield(NEV, 'ObjTrackInfo'))
                 for IDX = 1:size(NEV.ObjTrackInfo,2)
                     emptyChar = find(NEV.ObjTrackInfo(IDX).TrackableName == 0, 1);
@@ -851,7 +851,7 @@ if strcmpi(Flags.ReadData, 'read')
     NEV.Data.Spikes.WaveformUnit = Flags.waveformUnits;
     NEV.Data.Spikes.Waveform = fread(FID, [(Trackers.countPacketBytes-hOffset)/2 Trackers.readPackets(2)], ...
         [num2str((Trackers.countPacketBytes-hOffset)/2) '*int16=>int16'], hOffset);
-    NEV.Data.Spikes.Waveform(:, [digserIndices allExtraDataPacketIndices]) = []; 
+    NEV.Data.Spikes.Waveform(:, [digserIndices allExtraDataPacketIndices]) = [];
 
     clear allExtraDataPacketIndices;
     if strcmpi(Flags.waveformUnits, 'uv')
@@ -925,7 +925,7 @@ if ~isempty(DigiValues)
             DShighUniqueBin = dec2bin(NEV.Data.SerialDigitalIO.UnparsedData(uniqueDShighs));
             DShighUniqueDec = bin2dec(DShighUniqueBin(:,2:16));
             % Removing the non-strobed-high values from SerialDigitalIO
-            extraMembers = setxor(uniqueDShighs, 1:length(NEV.Data.SerialDigitalIO.UnparsedData));  
+            extraMembers = setxor(uniqueDShighs, 1:length(NEV.Data.SerialDigitalIO.UnparsedData));
             NEV.Data.SerialDigitalIO.TimeStamp(extraMembers) = [];
             NEV.Data.SerialDigitalIO.TimeStampSec(extraMembers) = [];
             NEV.Data.SerialDigitalIO.UnparsedData = DShighUniqueDec;
@@ -956,7 +956,7 @@ if strcmpi(Flags.Report, 'report')
     disp(['Data Duration (min) = ' num2str(round(NEV.MetaTags.DataDuration/NEV.MetaTags.SampleRes/60))]);
     disp(['Packet Counts       = ' num2str(Trackers.countDataPacket)]);
     disp(' ');
-    disp( '*** BASIC HEADER ***********************');    
+    disp( '*** BASIC HEADER ***********************');
     disp(['Sample Resolution   = ' num2str(NEV.MetaTags.SampleRes)]);
     disp(['Date and Time       = '         NEV.MetaTags.DateTime]);
     disp(['Comment             = '         NEV.MetaTags.Comment(1:64)   ]);
@@ -969,19 +969,19 @@ end
 %% Saving the NEV structure as a MAT file for easy access
 if strcmpi(Flags.SaveFile, 'save')
     if exist(matPath, 'file') == 2 && strcmpi(Flags.Overwrite, 'nooverwrite')
-        if strcmpi(Flags.WarningStat, 'warning')    
+        if strcmpi(Flags.WarningStat, 'warning')
             disp(['File ' matPath ' already exists.']);
             overWrite = input('Would you like to overwrite (Y/N)? ', 's');
         else
             overWrite = 'n';
         end
         if strcmpi(overWrite, 'y')
-            if strcmpi(Flags.WarningStat, 'warning')  
+            if strcmpi(Flags.WarningStat, 'warning')
                 disp('Saving MAT file. This may take a few seconds...');
             end
             save(matPath, 'NEV', '-v7.3');
         else
-            if strcmpi(Flags.WarningStat, 'warning')  
+            if strcmpi(Flags.WarningStat, 'warning')
                 disp('File was not overwritten.');
             end
         end
@@ -990,7 +990,7 @@ if strcmpi(Flags.SaveFile, 'save')
             disp(['File ' matPath ' already exists.']);
             disp('Overwriting the old MAT file. This may take a few seconds...');
         end
-        save(matPath, 'NEV', '-v7.3');        
+        save(matPath, 'NEV', '-v7.3');
     else
         if strcmpi(Flags.WarningStat, 'warning')
             disp('Saving MAT file. This may take a few seconds...');

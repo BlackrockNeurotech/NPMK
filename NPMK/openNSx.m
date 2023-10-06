@@ -1,15 +1,15 @@
 function varargout = openNSx(varargin)
 
 % openNSx
-% 
+%
 % Opens and reads an NSx file then returns all file information in a NSx
 % structure. Works with File Spec 2.1, 2.2, 2.3, and 3.0.
 % Use OUTPUT = openNSx(fname, 'read', 'report', 'e:xx:xx', 'c:xx:xx', 't:xx:xx', 'mode', 'precision', 'skipfactor', 'nozeropad').
-% 
+%
 % All input arguments are optional. Input arguments can be in any order.
 %
 %   fname:        Name of the file to be opened. If the fname is omitted
-%                 the user will be prompted to select a file. 
+%                 the user will be prompted to select a file.
 %                 DEFAULT: Will open Open File UI.
 %
 %   'read':       Will read the data in addition to the header information
@@ -57,11 +57,11 @@ function varargout = openNSx(varargin)
 %                 length of data the program will exit with an errorNS
 %                 message. If the end time is greater than the length of
 %                 data the end packet will be selected for end of data. The
-%                 user can specify the start and end values by comma 
+%                 user can specify the start and end values by comma
 %                 (e.g. [20,50]) or by a colon (e.g. [20:50]). To use this
 %                 argument the user must specify the [electrodes] or the
 %                 interval will be used for [electrodes] automatically.
-%                 This field needs to be preceded by the prefix 't:'. 
+%                 This field needs to be preceded by the prefix 't:'.
 %                 Note that if 'mode' is 'sample' the start duration cannot
 %                 be less than 1. The duration is inclusive.
 %                 See example for more details.
@@ -86,11 +86,11 @@ function varargout = openNSx(varargin)
 %                 'double' the NSx data will be read as 'double' and if set
 %                 to 'short', the NSx data will be read as 'int16' data
 %                 type. While reading the file as 'short' may have a much
-%                 smaller memory footprint and a faster read time, some 
-%                 post data analysis such as multiplying the signal by a 
-%                 factor that will make the data larger than (-32,768 to 
-%                 32,767 -- refer to MATLAB documentation for more 
-%                 information) may result in unexpected behavior. 
+%                 smaller memory footprint and a faster read time, some
+%                 post data analysis such as multiplying the signal by a
+%                 factor that will make the data larger than (-32,768 to
+%                 32,767 -- refer to MATLAB documentation for more
+%                 information) may result in unexpected behavior.
 %                 Always use caution when using short. If you are not sure
 %                 of what to use then do not specify this option.
 %                 DEFAULT: will read data in 'int16'.
@@ -108,7 +108,7 @@ function varargout = openNSx(varargin)
 %                 the version number of the function without reading any
 %                 data files.
 %
-%   'zeropad':  It will zeropad the data to compensate for the non-zero 
+%   'zeropad':  It will zeropad the data to compensate for the non-zero
 %               start time.
 %                 DEFAULT: does not zeropad the loaded data.
 %
@@ -119,7 +119,7 @@ function varargout = openNSx(varargin)
 %
 %   OUTPUT:       Contains the NSx structure.
 %
-%   Example 1: 
+%   Example 1:
 %   openNSx('report','read','c:\data\sample.ns5', 'e:15:30', 't:3:10','min', 'p:short', 's:5');
 %
 %   or equivalently
@@ -127,7 +127,7 @@ function varargout = openNSx(varargin)
 %
 %   In the example above, the file c:\data\sample.ns5 will be used. A
 %   report of the file contents will be shown. The data will be read from
-%   electrodes 15 through 50 in the 3-10 minute time interval. A decimated 
+%   electrodes 15 through 50 in the 3-10 minute time interval. A decimated
 %   version of the datafile will be read, where only every 5th sample is read.
 %   If any of the arguments above are omitted the default values will be used.
 %
@@ -135,8 +135,8 @@ function varargout = openNSx(varargin)
 %   openNSx('read','c:15:30');
 %
 %   In the example above, the file user will be prompted for the file. The
-%   file will be read using 'int16' precision as default. All time points 
-%   of Only channels 15 through 30 will be read. If any of the arguments 
+%   file will be read using 'int16' precision as default. All time points
+%   of Only channels 15 through 30 will be read. If any of the arguments
 %   above are omitted the default values will be used.
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -249,7 +249,7 @@ function varargout = openNSx(varargin)
 %   - Added support for 64-bit timestamps in NEV and NSx.
 %
 % 7.1.0.0: April 14, 2020
-%   - Added option to load the data without zero padding to compensate for 
+%   - Added option to load the data without zero padding to compensate for
 %     a non-zero start time. (David Kluger)
 %   - Bug fixes and documentation updates (David Kluger)
 %
@@ -258,16 +258,16 @@ function varargout = openNSx(varargin)
 %
 % 7.3.0.0: September 11, 2020
 %   - Fixed a bug related to fread and MATLAB 2020a.
-%   - Gives a warning about FileSpec 3.0 and gives the user options for how 
+%   - Gives a warning about FileSpec 3.0 and gives the user options for how
 %     to proceed.
 %   - Added a warning about the data unit and that by default it in the
 %     unit of 250 nV or 1/4 �V.
 %   - If the units are in "raw", ths correct information is now written to
-%     the electrodes header: 250 nV (raw). 
+%     the electrodes header: 250 nV (raw).
 %
 % 7.3.1.0: October 2, 2020
-%   - If the units are in �V (openNSx('uv'), ths correct information is now 
-%     written to the electrodes header: 1000 nV (raw). 
+%   - If the units are in �V (openNSx('uv'), ths correct information is now
+%     written to the electrodes header: 1000 nV (raw).
 %
 % 7.3.2.0: October 23, 2020
 %   - Fixed a typo.
@@ -293,6 +293,9 @@ function varargout = openNSx(varargin)
 % 7.4.4.0: April 1, 2023
 %   - Accounts for many segments in files for clock drift correction
 %   - Changed 'zeropad' default behavior to be 'no'
+%
+% 7.4.5.0: October 5, 2023
+%   - Bank numbers on new files are not alpha which causes problems on save
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Defining the NSx data structure and sub-branches.
@@ -428,8 +431,8 @@ for i=1:length(varargin)
             fname = inputArgument;
             if exist(fname, 'file') ~= 2
                 disp('The file does not exist.');
-                if nargout; 
-                    varargout{1} = -1; 
+                if nargout;
+                    varargout{1} = -1;
                 end
                 return;
             end
@@ -445,7 +448,7 @@ clear next;
 %% Popup the Open File UI. Also, process the file name, path, and extension
 %  for later use, and validate the entry.
 if ~exist('fname', 'var')
-    [fname, path] = getFile('*.ns1;*.ns2;*.ns3;*.ns4;*.ns5;*.ns6;*.ns6m', 'Choose an NSx file...');
+    [fname, path] = getFile('*.ns*', 'Choose an NSx file...');
     if fname == 0
         disp('No file was selected.');
         if nargout; varargout{1} = -1; end
@@ -462,7 +465,7 @@ else
 end
 if fname==0
     if nargout; varargout{1} = -1; end
-    return; 
+    return;
 end
 
 %% Loading .x files for multiNSP configuration
@@ -506,10 +509,8 @@ if strcmp(Report, 'report')
     disp(['openNSx ' NSx.MetaTags.openNSxver]);
 end
 
-
-
 %% Reading Basic Header from file into NSx structure.
-FID = fopen([path fname], 'r', 'ieee-le');	
+FID = fopen([path fname], 'r', 'ieee-le');
 
 fileFullPath = fullfile(path, fname);
 [NSx.MetaTags.FilePath, NSx.MetaTags.Filename, NSx.MetaTags.FileExt] = fileparts(fileFullPath);
@@ -546,10 +547,10 @@ elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.Fil
     elseif strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP')
         timeStampBytes = 8;
     end
-    
+
     %% Removing extra garbage characters from the Comment field.
-    NSx.MetaTags.Comment(find(NSx.MetaTags.Comment==0,1):end) = 0;    
-    
+    NSx.MetaTags.Comment(find(NSx.MetaTags.Comment==0,1):end) = 0;
+
 	%% Populating extended header information
 	for headerIDX = 1:ChannelCount
 		offset = double((headerIDX-1)*ExtHeaderLength);
@@ -558,11 +559,11 @@ elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.Fil
 			disp('extended header not supported');
 			fclose(FID);
 			if nargout; varargout{1} = -1; end
-			return;			
+			return;
 		end
 		NSx.ElectrodesInfo(headerIDX).ElectrodeID = typecast(ExtendedHeader((3:4)+offset), 'uint16');
 		NSx.ElectrodesInfo(headerIDX).Label = char(ExtendedHeader((5:20)+offset))';
-		NSx.ElectrodesInfo(headerIDX).ConnectorBank = char(ExtendedHeader(21+offset) + ('A' - 1));
+        NSx.ElectrodesInfo(headerIDX).ConnectorBank = ExtendedHeader(21+offset);
 		NSx.ElectrodesInfo(headerIDX).ConnectorPin   = ExtendedHeader(22+offset);
 		NSx.ElectrodesInfo(headerIDX).MinDigiValue   = typecast(ExtendedHeader((23:24)+offset), 'int16');
 		NSx.ElectrodesInfo(headerIDX).MaxDigiValue   = typecast(ExtendedHeader((25:26)+offset), 'int16');
@@ -722,7 +723,7 @@ end
 
 
 %% Added by NH - Feb 19, 2014
-% Create incrementing loop to skip from dataheader to dataheader and 
+% Create incrementing loop to skip from dataheader to dataheader and
 % collect the dataheader data in individual cells
 headerCount = 0;
 % Adding logic for Central v7.6 clock drift - DK 20230303
@@ -816,7 +817,7 @@ end
 % the data read.
 % DEBUG: This is not needed since the same length of data is to be
 % read.
-EndPacket = EndPacket / skipFactor; 
+EndPacket = EndPacket / skipFactor;
 
 % Finding which data segment the StartPacket is falling in-between
 segmentCounters = [];
@@ -867,7 +868,7 @@ if and(NSx.RawData.PausedFile, ~isPTP)
 end
 
 DataLength = EndPacket - StartPacket + 1;
-    
+
 % from now StartPacket and EndPacket are in terms of Samples and are zero-based
 clear TimeScale
 
@@ -883,7 +884,7 @@ if strcmp(ReadData, 'read')
                 % Skip the file to the beginning of the time requsted, if not 0
                 fseek(FID, (segmentStartPacket(dataIDX) - 1) * 2 * ChannelCount, 'cof');
                 % Skip the file to the first channel to read
-                fseek(FID, (find(NSx.MetaTags.ChannelID == min(userRequestedChannels))-1) * 2, 'cof');        
+                fseek(FID, (find(NSx.MetaTags.ChannelID == min(userRequestedChannels))-1) * 2, 'cof');
                 % Read data
                 NSx.Data{size(NSx.Data,2)+1} = fread(FID, [numChansToRead segmentDataPoints(dataIDX)], [num2str(numChansToRead) precisionType], double((ChannelCount-numChansToRead)*2 + ChannelCount*(skipFactor-1)*2));
             end
@@ -895,7 +896,7 @@ if strcmp(ReadData, 'read')
             % Skip the file to the beginning of the time requsted, if not 0
             fseek(FID, (StartPacket - 1) * 2 * ChannelCount, 'cof');
             % Skip the file to the first channel to read
-            fseek(FID, (find(NSx.MetaTags.ChannelID == min(userRequestedChannels))-1) * 2, 'cof');        
+            fseek(FID, (find(NSx.MetaTags.ChannelID == min(userRequestedChannels))-1) * 2, 'cof');
             % Read data
             NSx.Data = fread(FID, [numChansToRead DataLength], [num2str(numChansToRead) precisionType], double((ChannelCount-numChansToRead)*2 + ChannelCount*(skipFactor-1)*2));
         end
@@ -931,7 +932,7 @@ end
 % capture this - DK 20230303
 % channelThatWereRead = min(userRequestedChanRow):max(userRequestedChanRow);
 % if ~isempty(setdiff(channelThatWereRead,userRequestedChanRow))
-% 	deleteChannels = setdiff(channelThatWereRead, userRequestedChanRow) - min(userRequestedChanRow) + 1;
+%        deleteChannels = setdiff(channelThatWereRead, userRequestedChanRow) - min(userRequestedChanRow) + 1;
 %     if NSx.RawData.PausedFile
 %         for segIDX = 1:size(NSx.Data,2)
 %             NSx.Data{segIDX}(deleteChannels,:) = [];
@@ -1004,7 +1005,6 @@ if ~NSx.RawData.PausedFile && StartPacket == 1 && strcmpi(zeropad, 'yes') && ~is
         NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints / NSx.MetaTags.SamplingFreq;
     end
 end
-
 
 %% Adjusting for the data's unit.
 if strcmpi(waveformUnits, 'uV')
