@@ -1034,6 +1034,11 @@ NSx.MetaTags.DataPointsSec = double(NSx.MetaTags.DataPoints)/NSx.MetaTags.Sampli
 %% Calculating the DataPoints in seconds and adding it to MetaData
 NSx.MetaTags.DataDurationSec = double(NSx.MetaTags.DataPoints)/NSx.MetaTags.SamplingFreq;
 
+%% Adding implementation of samplealign for cases where it is needed
+if isPTP && align
+    NSx = samplealign(NSx);
+end
+
 %% Displaying a report of basic file information and the Basic Header.
 if strcmp(Report, 'report')
     disp( '*** FILE INFO **************************');
@@ -1049,11 +1054,6 @@ if strcmp(Report, 'report')
     disp(['Sample Frequency   = '  num2str(double(NSx.MetaTags.SamplingFreq))]);
     disp(['Electrodes Read    = '  num2str(double(NSx.MetaTags.ChannelCount))]);
     disp(['Data Point Read    = '  num2str(size(NSx.Data,2))]);
-end
-
-%% Adding implementation of samplealign for cases where it is needed
-if isPTP && align
-    NSx = samplealign(NSx);
 end
 
 %% If user does not specify an output argument it will automatically create
