@@ -9,18 +9,36 @@ function saveNSx(NSx,varargin)
 %   All arguments below are optional:
 %   Filename:   A complete filepath for the output file.
 %               Default: CurrentFilename-Modified.NSx
+%   Filespec:   Save the file using the filespec specified e.g. 2.3 or 3.0
+%               Default: same as the filespec loaded
 
-%saveNSx version = '1.0.0.0';
+%saveNSx version = '1.0.0.1';
 
+% Version History
+%
+% 1.0.0.1:
+%   - Added ability to save to a specific filespec
+%
 
 %% 
 % Verify FilePath and establish overwrite paramaters
-if not(isempty(varargin))
-    FilePath = varargin{1};
-else
-    FilePath = [fullfile(NSx.MetaTags.FilePath,NSx.MetaTags.Filename) '-modified' NSx.MetaTags.FileExt];
-%     [File,Path] = uiputfile;
-%     FilePath = [fullfile(Path,NSx.MetaTags.Filename(1:end)),'-modified',  NSx.MetaTags.FileExt];
+FilePath = [fullfile(NSx.MetaTags.FilePath,NSx.MetaTags.Filename) '-modified' NSx.MetaTags.FileExt];
+if length(varargin) >= 1
+    if not(isempty(varargin{1}))
+        FilePath = varargin{1};
+    end
+end
+
+% save to a specific filespec
+if length(varargin) >= 2
+    if (varargin{2} == 2.3)
+        NSx.MetaTags.FileTypeID(1:8) = 'NEURALCD';
+        NSx.MetaTags.FileSpec(1:3) = '2.3';
+    end
+    if (varargin{2} == 3.0)
+        NSx.MetaTags.FileTypeID(1:8) = 'BRSMPGRP';
+        NSx.MetaTags.FileSpec(1:3) = '3.0';
+    end
 end
 
 
