@@ -855,7 +855,7 @@ try
             file.MetaTags.DataDurationTimeRes = segment_durations(1:curr_segment);
             
             % may or may not be required
-            f.BOData = [f.EOexH+1+8 f.EOexH+1+8+PacketSize*cumsum(segment_datapoints(1:curr_segment-1))];
+            f.BOData = [f.EOexH+1+8+4 f.EOexH+1+8+4+PacketSize*cumsum(segment_datapoints(1:curr_segment-1))];
             f.EOData = f.EOexH + PacketSize*cumsum(segment_datapoints(1:curr_segment));
         end
     end
@@ -1213,11 +1213,17 @@ if isPTP && align
         addedsamples = round((samplingrates-1)*file_datalength);
 
         % Establish where the points should be added or removed
-        gapind = round(file.MetaTags.DataPoints(ii)/(abs(addedsamples)+1));
+        gapind = round(file_datalength/(abs(addedsamples)+1));
 
         % calculate the portion of samples added/subtracted to the
         % requested data, which may be shorter than the full file
-        addedsamples = round(addedsamples * NSx.MetaTags.DataPoints(ii)/file_datalength);
+        % use floor because we need addedsamples+1 sections to avoid
+        % adding/subtracting samples at the beginning or end of the data.
+        addedsamples_fraction = addedsamples * NSx.MetaTags.DataPoints(ii)/file_datalength;
+        addedsamples = floor(addedsamples_fraction);
+        if addedsamples == addedsamples_fraction && NSx.MetaTags.DataPoints(ii)<file_datalength
+            addedsamples = addedsamples - 1;
+        end
         
         % split into cell arrays
         dim1_sz = size(NSx.Data{ii},1);
