@@ -77,20 +77,24 @@ function varargout = openNSx(varargin)
 %
 %   MODE:         Specify the units of duration values specified with 
 %                 'duration' (or 't:XX:YY') input. Valid values of MODE are
-%                 'sec', 'min', 'hour', or 'sample'.
+%                       'sec', 'secs', 'second', 'seconds'
+%                       'min', 'mins', 'minute', 'minutes'
+%                       'hour', 'hours'
+%                       'sample', 'samples'
 %                 DEFAULT: 'sample'
 %
 %   'uV':         Read the recording waveforms in unit of uV instead of raw
 %                 values. Note that this conversion requires 'double'
-%                 precision; if precision has been set to 'int16' or 
-%                 'short', it will be updated to 'double' if this argument
-%                 is provided.
+%                 precision; if this argument is provided and precision has
+%                 been set to 'int16' or 'short', it will be updated to 
+%                 'double' with a warning.
 %
 %   'precision',P
 %   'p:P':        Specify the precision P for data read from the NSx file.
 %                 Valid options are 'double' (64-bit floating point) or
 %                 'int16' (or, equivalently, 'short'; 16-bit signed
-%                 integer). While 'int16' uses less memory, be mindful of
+%                 integer). Data are stored in the file as int16 values. 
+%                 Still, while 'int16' uses less memory, be mindful of
 %                 the limitations of integer data types
 %                 (https://www.mathworks.com/help/matlab/numeric-types.html).
 %                 Note that if the argument 'uV' is provided (conversion
@@ -101,28 +105,29 @@ function varargout = openNSx(varargin)
 %   'skipfactor',S
 %   's:S':        Decimate data read from disk, e.g., to quickly preview
 %                 data. The integer S will determine how many samples to
-%                 skip. For example, if skipfactor is 2 then every other
-%                 sample is read. This action is only decimation: no
-%                 anti-aliasing filter is applied.
+%                 skip. For example, if S is 2 then every other sample is
+%                 read. This action is decimation only: no anti-aliasing
+%                 filter is applied.
 %                 DEFAULT: 1 (every sample read)
 %
 %   'zeropad':    Prepend the data with zeros to compensate for non-zero 
-%                 start time. Note that the time origin of newer data files
-%                 is not 0, and timestamps may be in the 10^18 range.
-%                 Prepending this many zeros is not possible for normal
-%                 computer systems.
+%                 start time. Note that timestamps in newer data files may
+%                 be in the 10^18 range. Prepending this many zeros is not
+%                 advisable for normal computer systems, nor does it carry
+%                 the same logic as older data files where time zero was
+%                 relevant to the recording.
 %                 DEFAULT: No zero padding.
 %
 %   'noalign':    Do not apply bug fix for clock drift in Central release
 %                 7.6.0. In executing the bug fix (if this argument is not
 %                 provided), samples may be added or removed to restore
-%                 synchronization. Changes are made at evenly spaced points
+%                 clock alignment. Changes are made at evenly spaced points
 %                 throughout the file. Samples are added by duplicating the
-%                 prior sample.
+%                 prior sample; they are removed by deleting a sample.
 %                 DEFAULT: Alignment occurs with warnings.
 %
 %   'max_tick_multiple', M:
-%                 Newer data files use PTP (precision time protocol) to
+%                 Newer data files use PTP (precision time protocol) and
 %                 timestamp each sample of data, instead of only the first
 %                 sample in a frame of contiguous samples. To detect pauses
 %                 in a PTP recording, openNSx processes the file in frames:
@@ -136,32 +141,33 @@ function varargout = openNSx(varargin)
 %                 If it is too high, pauses will be missed. Note that due
 %                 to jitter in sample timing, this value should be set in
 %                 coordination with the number of packets in each frame
-%                 (see 'packets_per_frame'), to ensure that the sum of the
-%                 jitter does not exceed the detection threshold.
+%                 (see 'packets_per_frame') to ensure the sum of jittered
+%                 sampling intervals does not exceed the detection
+%                 threshold.
 %                 DEFAULT: 2 (equivalent to missing one sample)
 %
 %   'packets_per_frame', P:
-%                 Newer data files use PTP (precision time protocol) to
+%                 Newer data files use PTP (precision time protocol) and
 %                 timestamp each sample of data, instead of only the first
 %                 sample in a frame of contiguous samples. To detect pauses
-%                 in a PTP recording, openNSx processes the file in frames:
-%                 it reads the timestamp of the first and last packets in
-%                 each frame and checks whether the elapsed time is greater
-%                 than it should be, assuming contiguously recorded packets
-%                 at the expected sampling rate (see 'max_tick_multiple').
-%                 The number of frames F is given by CEIL(TOTAL_PACKETS/P),
-%                 where TOTAL_PACKETS is the number of packets in the file.
-%                 Note that this method reads only F+1 timestamps from disk
-%                 if there are no pauses detected. For each frame
-%                 containing one or more detected pauses, all P timestamps
-%                 in the frame are read from disk to identify the specific
-%                 samples between which the pauses occur. Thus, P can be
-%                 increased to lower F, but it should not be so large that
-%                 a vector of P doubles would not fit in memory. Note also
-%                 that because of jitter in sample timing, setting this
-%                 value too large may lead to spurious detections (i.e.,
-%                 the sum of jitter could be greater than the detection
-%                 threshold).
+%                 in a PTP recording, openNSx processes the file in frames,
+%                 each containing P packets: it reads the timestamp of the
+%                 first and last packets in each frame and checks whether
+%                 the elapsed time is greater than it should be, assuming
+%                 contiguously recorded packets at the expected sampling
+%                 rate (see 'max_tick_multiple'). The number of frames F is
+%                 given by CEIL(TOTAL_PACKETS/P), where TOTAL_PACKETS is
+%                 the number of packets in the file. Note that this method
+%                 reads only F+1 timestamps from disk if there are no
+%                 pauses detected. For each frame containing one or more
+%                 detected pauses, all P timestamps in the frame are read
+%                 from disk to identify the specific samples between which
+%                 the pauses occur. Thus, P can be increased to lower F,
+%                 but it should not be so large that a vector of P doubles
+%                 would not fit in memory. Note also that because of jitter
+%                 in sample timing, setting this value too large may lead
+%                 to spurious detections (i.e., the sum of jitter could be
+%                 greater than the detection threshold).
 %                 DEFAULT: 1,000 packets per frame.
 %
 %   OUTPUT:       The NSx structure.
@@ -175,8 +181,8 @@ function varargout = openNSx(varargin)
 %   In the example above, the file c:\data\sample.ns5 will be used. A
 %   report of the file contents will be shown. The data will be read from
 %   electrodes 15 through 50 in the 3-10 minute time interval. A decimated 
-%   version of the datafile will be read, where only every 5th sample is read.
-%   If any of the arguments above are omitted the default values will be used.
+%   version of the datafile will be read, where only every 5th sample is
+%   read.
 %
 %   Example 2:
 %   openNSx('read','c:15:30');
@@ -342,43 +348,51 @@ function varargout = openNSx(varargin)
 %
 % 7.4.5.0: December 6, 2023
 %   - Better support for reading files recorded from Gemini systems
+%   - Restores default precision to int16 as documented
+%   - General code maintenance
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% Defining the NSx data structure and sub-branches.
+%% Define the NSx data structure and sub-branches.
 NSx          = struct('MetaTags',[],'Data',[], 'RawData', []);
 NSx.MetaTags = struct('FileTypeID',[],'SamplingLabel',[],'ChannelCount',[],'SamplingFreq',[], 'TimeRes', [], ...
                       'ChannelID',[],'DateTime',[],'DateTimeRaw',[], 'Comment', [], 'FileSpec', [], ...
                       'Timestamp', [], 'DataPoints', [], 'DataDurationSec', [], 'openNSxver', [], 'Filename', [], 'FilePath', [], ...
                       'FileExt', []);
-                                    
+
 NSx.MetaTags.openNSxver = '7.4.5.0';
-                  
-%% Check for the latest version fo NPMK
+
+%% Check for the latest version of NPMK
 NPMKverChecker
 
-% Defining constants
-ExtHeaderLength = 66;
-elecReading     = 0;
+%% Define constants and defaults
+extHeaderEntrySize = 66;
 NSx.RawData.PausedFile = 0;
 syncShift = 0;
+flagFoundSettingsManager = exist('settingsManager','file')==2;
+NPMKSettings = [];
+if flagFoundSettingsManager
+    NPMKSettings = settingsManager;
+end
 
 % Default values
-Report = 0;
-ReadData = 1;
-TimeScale = 'sample';
-precisionType = 'int16';
-skipFactor = 1;
-modifiedTime = 0;
-multinsp = 1;
-waveformUnits = 'raw';
-zeropad = 0;
-align = true;
-packets_per_frame = 1000;
-max_tick_multiple = 2;
-userRequestedChanRow = [];
-fname = '';
+flagReport = 0;
+flagReadData = 1;
+flagElectrodeReading = 0;
+flagModifiedTime = 0;
+flagMultiNSP = 1;
+flagZeroPad = 0;
+flagAlign = 1;
+flagConvertToUv = 0;
+flagOneSamplePerPacket = 0;
+requestedTimeScale = 'sample';
+requestedPrecisionType = 'int16';
+requestedSkipFactor = 1;
+requestedPacketsPerFrame = 1000;
+requestedMaxTickMultiple = 2;
+requestedChanRow = [];
+requestedFileName = '';
 
-%% Validating the input arguments. Exit with error message if error occurs.
+%% Process input arguments
 next = '';
 for i=1:length(varargin)
     inputArgument = varargin{i};
@@ -400,19 +414,19 @@ for i=1:length(varargin)
     elseif strcmpi(inputArgument, 'max_tick_multiple')
         next = 'max_tick_multiple';
     elseif strcmpi(inputArgument, 'report')
-        Report = 1;
+        flagReport = 1;
     elseif strcmpi(inputArgument, 'noread')
-        ReadData = 0;
+        flagReadData = 0;
     elseif strcmpi(inputArgument, 'nomultinsp')
-        multinsp = 0;
+        flagMultiNSP = 0;
     elseif strcmpi(inputArgument, 'zeropad')
-        zeropad = 1;
+        flagZeroPad = 1;
     elseif strcmpi(inputArgument, 'uV')
-        waveformUnits = 'uV';
+        flagConvertToUv = 1;
     elseif strcmpi(inputArgument, 'noalign')
-        align = false;
+        flagAlign = false;
     elseif strcmpi(inputArgument, 'read')
-        ReadData = 1;
+        flagReadData = 1;
     elseif (strncmp(inputArgument, 't:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'duration')
         if strncmp(inputArgument, 't:', 2)
             inputArgument(1:2) = [];
@@ -420,39 +434,39 @@ for i=1:length(varargin)
         elseif ischar(inputArgument)
             inputArgument = str2num(inputArgument); %#ok<ST2NM>
         end
-        modifiedTime = 1;
-        StartPacket = inputArgument(1);
-        EndPacket = inputArgument(end);
+        flagModifiedTime = 1;
+        requestedStartValue = inputArgument(1);
+        requestedEndValue = inputArgument(end);
         next = '';
     elseif (strncmp(inputArgument, 'e:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'electrodes')
         assert(exist('KTUEAMapFile','file')==2,'To read data by ''electrodes'' the function KTUEAMapFile needs to be in path.');
-        Mapfile = KTUEAMapFile;
-        Elec = str2num(inputArgument(3:end)); %#ok<ST2NM>
-        if min(Elec)<1 || max(Elec)>128
-            assert(min(Elec)>=1 && max(Elec)<=128, 'The electrode number cannot be less than 1 or greater than 128.');
+        mapFile = KTUEAMapFile;
+        requestedElectrodes = str2num(inputArgument(3:end)); %#ok<ST2NM>
+        if min(requestedElectrodes)<1 || max(requestedElectrodes)>128
+            assert(min(requestedElectrodes)>=1 && max(requestedElectrodes)<=128, 'The electrode number cannot be less than 1 or greater than 128.');
         end
-        userRequestedChannels = nan(1,length(Elec));
-        for chanIDX = 1:length(Elec)
-            userRequestedChannels(chanIDX) = Mapfile.Electrode2Channel(Elec(chanIDX));
+        requestedChannels = nan(1,length(requestedElectrodes));
+        for chanIDX = 1:length(requestedElectrodes)
+            requestedChannels(chanIDX) = mapFile.Electrode2Channel(requestedElectrodes(chanIDX));
         end
-        elecReading = 1;
+        flagElectrodeReading = 1;
         next = '';
     elseif (strncmp(inputArgument, 's:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'skipFactor')
         if strncmp(inputArgument, 's:', 2)
-            skipFactor = str2num(inputArgument(3:end)); %#ok<ST2NM>
+            requestedSkipFactor = str2num(inputArgument(3:end)); %#ok<ST2NM>
         elseif ischar(inputArgument)
-            skipFactor = str2num(inputArgument); %#ok<ST2NM>
+            requestedSkipFactor = str2num(inputArgument); %#ok<ST2NM>
         else
-            skipFactor = inputArgument;
+            requestedSkipFactor = inputArgument;
         end
         next = '';
     elseif (strncmp(inputArgument, 'c:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'channels')
         if strncmp(inputArgument, 'c:', 2)
-            userRequestedChanRow = str2num(inputArgument(3:end)); %#ok<ST2NM>
+            requestedChanRow = str2num(inputArgument(3:end)); %#ok<ST2NM>
         elseif ischar(inputArgument)
-            userRequestedChanRow = str2num(inputArgument(3:end)); %#ok<ST2NM>
+            requestedChanRow = str2num(inputArgument(3:end)); %#ok<ST2NM>
         else
-            userRequestedChanRow = inputArgument;
+            requestedChanRow = inputArgument;
         end
         next = '';
     elseif (strncmp(varargin{i}, 'p:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'precision')
@@ -463,28 +477,27 @@ for i=1:length(varargin)
         end
         switch precisionTypeRaw
             case {'int16','short'}
-                precisionType = 'int16';
+                requestedPrecisionType = 'int16';
             case 'double'
-                precisionType = 'double';
+                requestedPrecisionType = 'double';
             otherwise
                 error('Precision type is not valid. Refer to ''help'' for more information.');
         end
-        clear precisionTypeRaw;
         next = '';
     elseif strcmpi(next, 'packets_per_frame')
         if ischar(inputArgument)
-            packets_per_frame = str2double(inputArgument);
+            requestedPacketsPerFrame = str2double(inputArgument);
         else
-            packets_per_frame = inputArgument;
+            requestedPacketsPerFrame = inputArgument;
         end
     elseif strcmpi(next, 'max_tick_multiple')
         if ischar(inputArgument)
-            max_tick_multiple = str2double(inputArgument);
+            requestedMaxTickMultiple = str2double(inputArgument);
         else
-            max_tick_multiple = inputArgument;
+            requestedMaxTickMultiple = inputArgument;
         end
     elseif strfind(' hour hours min mins minute minutes sec secs second seconds sample samples ', [' ' inputArgument ' ']) ~= 0
-        TimeScale = inputArgument;
+        requestedTimeScale = inputArgument;
     else
         temp = char(inputArgument);
         if length(temp)>3 && ...
@@ -493,8 +506,8 @@ for i=1:length(varargin)
                 strcmpi(temp(2),'/') || ...
                 strcmpi(temp(1:2), '\\') || ...
                 strcmpi(temp(end-3), '.'))
-            fname = inputArgument;
-            assert(exist(fname, 'file')==2,'The file does not exist.');
+            requestedFileName = inputArgument;
+            assert(exist(requestedFileName, 'file')==2,'The file does not exist.');
         else
             error(['Invalid argument ''' inputArgument '''.']);
         end
@@ -503,77 +516,78 @@ end
 clear next;
 
 % check uV conversion versus data type
-if strcmpi(waveformUnits,'uV') && ~strcmpi(precisionType,'double')
-    warning('Conversion to uV requires double precision; updating from %s to comply',precisionType);
-    precisionType = 'double';
+if flagConvertToUv && ~strcmpi(requestedPrecisionType,'double')
+    warning('Conversion to uV requires double precision; updating from %s to comply',requestedPrecisionType);
+    requestedPrecisionType = 'double';
 end
 
-%% Popup the Open File UI. Also, process the file name, path, and extension
-%  for later use, and validate the entry.
-if ~exist('fname', 'var')
-    [fname, path] = getFile('*.ns1;*.ns2;*.ns3;*.ns4;*.ns5;*.ns6;*.ns6m', 'Choose an NSx file...');
-    assert(fname~=0,'No file selected');
-    [~, ~, fext] = fileparts(fname);
-else
-    if isempty(fileparts(fname))
-        fname = which(fname);
-    end
-    [path,fname, fext] = fileparts(fname);
-    fname = [fname fext];
-    path  = [path '/'];
-end
-if fname==0
-    if nargout; varargout{1} = -1; end
-    return;
-end
-
-%% Loading .x files for multiNSP configuration
-if strcmpi(fext(2:4), 'ns6') && length(fext) == 5
-    path(1) = fname(end);
-    fname(end) = [];
-end
-
-tic;
-
-%% Give all input arguments a default value. All input argumens are
-%  optional.
-
-% Check to see if 512 setup and calculate offset
-if multinsp
-    fiveTwelveFlag = regexp(fname, '-i[0123]-', 'ONCE');
-    if ~isempty(fiveTwelveFlag)
-        syncShift = multiNSPSync(fullfile(path, fname));
-    else
-        multinsp = 0;
-    end
-end
-
-if ~ReadData
+if ~flagReadData
     warning('Reading the header information only.');
 end
 
-if Report
+if flagReport
     disp(['openNSx ' NSx.MetaTags.openNSxver]);
 end
 
-
-
-%% Reading Basic Header from file into NSx structure.
-fileFullPath = fullfile(path, fname);
+%% Identify data file name, path, and extension
+%  for later use, and validate the entry.
+if isempty(requestedFileName)
+    [requestedFileName, requestedFilePath] = getFile('*.ns1;*.ns2;*.ns3;*.ns4;*.ns5;*.ns6;*.ns6m', 'Choose an NSx file...');
+    assert(requestedFileName~=0,'No file selected');
+    [~, ~, requestedFileExtension] = fileparts(requestedFileName);
+else
+    if isempty(fileparts(requestedFileName))
+        requestedFileName = which(requestedFileName);
+    end
+    [requestedFilePath,requestedFileName, requestedFileExtension] = fileparts(requestedFileName);
+    requestedFileName = [requestedFileName requestedFileExtension];
+    requestedFilePath  = [requestedFilePath '/'];
+end
+assert(ischar(requestedFileName)||requestedFileName~=0,'Could not identify file to read');
+fileFullPath = fullfile(requestedFilePath, requestedFileName);
 [NSx.MetaTags.FilePath, NSx.MetaTags.Filename, NSx.MetaTags.FileExt] = fileparts(fileFullPath);
 
-FID = fopen([path fname], 'r', 'ieee-le');
+% Check to see if 512 setup and calculate offset
+if flagMultiNSP
+    flag512 = regexp(requestedFileName, '-i[0123]-', 'ONCE');
+    if ~isempty(flag512)
+        syncShift = multiNSPSync(fullfile(requestedFilePath, requestedFileName));
+    else
+        flagMultiNSP = 0;
+    end
+end
+
+%% Loading .x files for multiNSP configuration
+if strcmpi(requestedFileExtension(2:4), 'ns6') && length(requestedFileExtension) == 5
+    requestedFilePath(1) = requestedFileName(end);
+    requestedFileName(end) = [];
+end
+
+%% Measure time required to load data
+tic;
+
+%% Process file
+
+FID = fopen([requestedFilePath requestedFileName], 'r', 'ieee-le');
 try
+    
+    %% Read Headers
     NSx.MetaTags.FileTypeID = fread(FID, [1,8], 'uint8=>char');
     if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALSG')
-        timeStampBytes             = 4;
+        
+        %% Read Basic Header
+        basicHeaderBytes           = fread(FID, 24, '*uint8');
         NSx.MetaTags.FileSpec      = '2.1';
-        NSx.MetaTags.SamplingLabel = fread(FID, [1,16], 'uint8=>char');
+        NSx.MetaTags.SamplingLabel = char(basicHeaderBytes(1:16));
         NSx.MetaTags.TimeRes       = double(30000);
-        NSx.MetaTags.SamplingFreq  = NSx.MetaTags.TimeRes / fread(FID, 1, 'uint32=>double');
-        ChannelCount               = fread(FID, 1, 'uint32=>double');
-        NSx.MetaTags.ChannelCount  = ChannelCount;
-        NSx.MetaTags.ChannelID     = fread(FID, [ChannelCount 1], '*uint32');
+        NSx.MetaTags.SamplingFreq  = NSx.MetaTags.TimeRes / double(typecast(basicHeaderBytes(17:20),'uint32'));
+        channelCount               = double(typecast(basicHeaderBytes(21:24),'uint32'));
+        NSx.MetaTags.ChannelCount  = channelCount;
+        
+        %% Read Extended Header
+        extendedHeaderSize = channelCount*4;
+        extendedHeaderBytes = fread(FID, extendedHeaderSize, '*uint8');
+        NSx.MetaTags.ChannelID = typecast(extendedHeaderBytes, 'uint32');
         try
             t                          = dir(fileFullPath);
             NSx.MetaTags.DateTime      = t.date;
@@ -582,44 +596,47 @@ try
             NSx.MetaTags.DateTime  = '';
             disp(ME2)
         end
+        timestampSize             = 4;
     elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP'))
-        BasicHeader                = fread(FID, 306, '*uint8');
-        NSx.MetaTags.FileSpec      = [num2str(double(BasicHeader(1))) '.' num2str(double(BasicHeader(2)))];
-        %HeaderBytes                = double(typecast(BasicHeader(3:6), 'uint32'));
-        NSx.MetaTags.SamplingLabel = char(BasicHeader(7:22))';
-        NSx.MetaTags.Comment       = char(BasicHeader(23:278))';
-        NSx.MetaTags.TimeRes       = double(typecast(BasicHeader(283:286), 'uint32'));
-        NSx.MetaTags.SamplingFreq  = double(30000 / double(typecast(BasicHeader(279:282), 'uint32')));
-        t                          = double(typecast(BasicHeader(287:302), 'uint16'));
-        ChannelCount               = double(typecast(BasicHeader(303:306), 'uint32'));
-        NSx.MetaTags.ChannelCount  = ChannelCount;
-        readSize                   = double(ChannelCount * ExtHeaderLength);
-        ExtendedHeader             = fread(FID, readSize, '*uint8');
+        
+        %% Read Basic Header
+        basicHeaderBytes           = fread(FID, 306, '*uint8');
+        NSx.MetaTags.FileSpec      = [num2str(double(basicHeaderBytes(1))) '.' num2str(double(basicHeaderBytes(2)))];
+        %BasicHeaderSize            = double(typecast(BasicHeader(3:6), 'uint32'));
+        NSx.MetaTags.SamplingLabel = char(basicHeaderBytes(7:22))';
+        NSx.MetaTags.Comment       = char(basicHeaderBytes(23:278))';
+        NSx.MetaTags.TimeRes       = double(typecast(basicHeaderBytes(283:286), 'uint32'));
+        NSx.MetaTags.SamplingFreq  = double(30000 / double(typecast(basicHeaderBytes(279:282), 'uint32')));
+        t                          = double(typecast(basicHeaderBytes(287:302), 'uint16'));
+        channelCount               = double(typecast(basicHeaderBytes(303:306), 'uint32'));
+        NSx.MetaTags.ChannelCount  = channelCount;
         if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
-            timeStampBytes = 4;
+            timestampSize = 4;
         elseif strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP')
-            timeStampBytes = 8;
+            timestampSize = 8;
         end
         
-        %% Removing extra garbage characters from the Comment field.
+        % Removing extra garbage characters from the Comment field.
         NSx.MetaTags.Comment(find(NSx.MetaTags.Comment==0,1):end) = 0;
         
-        %% Populating extended header information
-        for headerIDX = 1:ChannelCount
-            offset = double((headerIDX-1)*ExtHeaderLength);
-            NSx.ElectrodesInfo(headerIDX).Type = char(ExtendedHeader((1:2)+offset))';
+        %% Read Extended Header
+        extendedHeaderSize = double(channelCount * extHeaderEntrySize);
+        extendedHeaderBytes = fread(FID, extendedHeaderSize, '*uint8');
+        for headerIDX = 1:channelCount
+            byteOffset = double((headerIDX-1)*extHeaderEntrySize);
+            NSx.ElectrodesInfo(headerIDX).Type = char(extendedHeaderBytes((1:2)+byteOffset))';
             assert(strcmpi(NSx.ElectrodesInfo(headerIDX).Type, 'CC'),'extended header not supported');
             
-            NSx.ElectrodesInfo(headerIDX).ElectrodeID = typecast(ExtendedHeader((3:4)+offset), 'uint16');
-            NSx.ElectrodesInfo(headerIDX).Label = char(ExtendedHeader((5:20)+offset))';
-            NSx.ElectrodesInfo(headerIDX).ConnectorBank = char(ExtendedHeader(21+offset) + ('A' - 1));
-            NSx.ElectrodesInfo(headerIDX).ConnectorPin   = ExtendedHeader(22+offset);
-            NSx.ElectrodesInfo(headerIDX).MinDigiValue   = typecast(ExtendedHeader((23:24)+offset), 'int16');
-            NSx.ElectrodesInfo(headerIDX).MaxDigiValue   = typecast(ExtendedHeader((25:26)+offset), 'int16');
-            NSx.ElectrodesInfo(headerIDX).MinAnalogValue = typecast(ExtendedHeader((27:28)+offset), 'int16');
-            NSx.ElectrodesInfo(headerIDX).MaxAnalogValue = typecast(ExtendedHeader((29:30)+offset), 'int16');
-            NSx.ElectrodesInfo(headerIDX).AnalogUnits    = char(ExtendedHeader((31:46)+offset))';
-            if strcmpi(waveformUnits, 'uV')
+            NSx.ElectrodesInfo(headerIDX).ElectrodeID = typecast(extendedHeaderBytes((3:4)+byteOffset), 'uint16');
+            NSx.ElectrodesInfo(headerIDX).Label = char(extendedHeaderBytes((5:20)+byteOffset))';
+            NSx.ElectrodesInfo(headerIDX).ConnectorBank = char(extendedHeaderBytes(21+byteOffset) + ('A' - 1));
+            NSx.ElectrodesInfo(headerIDX).ConnectorPin   = extendedHeaderBytes(22+byteOffset);
+            NSx.ElectrodesInfo(headerIDX).MinDigiValue   = typecast(extendedHeaderBytes((23:24)+byteOffset), 'int16');
+            NSx.ElectrodesInfo(headerIDX).MaxDigiValue   = typecast(extendedHeaderBytes((25:26)+byteOffset), 'int16');
+            NSx.ElectrodesInfo(headerIDX).MinAnalogValue = typecast(extendedHeaderBytes((27:28)+byteOffset), 'int16');
+            NSx.ElectrodesInfo(headerIDX).MaxAnalogValue = typecast(extendedHeaderBytes((29:30)+byteOffset), 'int16');
+            NSx.ElectrodesInfo(headerIDX).AnalogUnits    = char(extendedHeaderBytes((31:46)+byteOffset))';
+            if flagConvertToUv
                 NSx.ElectrodesInfo(headerIDX).Resolution = 1;
             else
                 NSx.ElectrodesInfo(headerIDX).Resolution = ...
@@ -631,133 +648,80 @@ try
             %             conversion = int16(double(NSx.ElectrodesInfo(headerIDX).MaxAnalogValue) / double(NSx.ElectrodesInfo(headerIDX).MaxDigiValue)*1000);
             %             NSx.ElectrodesInfo(headerIDX).AnalogUnits    = [num2str(conversion), ' nV (raw)    '];
             %         end
-            NSx.ElectrodesInfo(headerIDX).HighFreqCorner = typecast(ExtendedHeader((47:50)+offset), 'uint32');
-            NSx.ElectrodesInfo(headerIDX).HighFreqOrder  = typecast(ExtendedHeader((51:54)+offset), 'uint32');
-            NSx.ElectrodesInfo(headerIDX).HighFilterType = typecast(ExtendedHeader((55:56)+offset), 'uint16');
-            NSx.ElectrodesInfo(headerIDX).LowFreqCorner  = typecast(ExtendedHeader((57:60)+offset), 'uint32');
-            NSx.ElectrodesInfo(headerIDX).LowFreqOrder   = typecast(ExtendedHeader((61:64)+offset), 'uint32');
-            NSx.ElectrodesInfo(headerIDX).LowFilterType  = typecast(ExtendedHeader((65:66)+offset), 'uint16');
+            NSx.ElectrodesInfo(headerIDX).HighFreqCorner = typecast(extendedHeaderBytes((47:50)+byteOffset), 'uint32');
+            NSx.ElectrodesInfo(headerIDX).HighFreqOrder  = typecast(extendedHeaderBytes((51:54)+byteOffset), 'uint32');
+            NSx.ElectrodesInfo(headerIDX).HighFilterType = typecast(extendedHeaderBytes((55:56)+byteOffset), 'uint16');
+            NSx.ElectrodesInfo(headerIDX).LowFreqCorner  = typecast(extendedHeaderBytes((57:60)+byteOffset), 'uint32');
+            NSx.ElectrodesInfo(headerIDX).LowFreqOrder   = typecast(extendedHeaderBytes((61:64)+byteOffset), 'uint32');
+            NSx.ElectrodesInfo(headerIDX).LowFilterType  = typecast(extendedHeaderBytes((65:66)+byteOffset), 'uint16');
         end
-        clear ExtendedHeader;
-        %% Parsing and validating FileSpec and DateTime variables
+        
+        % Parse DateTime
         NSx.MetaTags.DateTimeRaw = t.';
         NSx.MetaTags.DateTime = datestr(datenum(t(1), t(2), t(4), t(5), t(6), t(7)));
-        clear t;
     else
         error('Unsupported file spec %s', NSx.MetaTags.FileSpec);
     end
     
-    %% Copying ChannelID to MetaTags for filespec 2.2, 2.3, and 3.0 for compatibility with filespec 2.1
+    % Check zeropad if timeres is 1e9
+    if NSx.MetaTags.TimeRes > 1e5
+        assert(~flagZeroPad,'No zeropad for nanosecond resolution timestamps');
+    end
+    
+    % Copy ChannelID to MetaTags for filespec 2.2, 2.3, and 3.0 for compatibility with filespec 2.1
     if or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP'))
         NSx.MetaTags.ChannelID = [NSx.ElectrodesInfo.ElectrodeID]';
     end
     
-    
-    %% Determining the number of channels to read and validating the input
-    % Moved higher up - DK 20230303
-    if ~elecReading
-        if isempty(userRequestedChanRow)
-            userRequestedChannels = NSx.MetaTags.ChannelID;
-        else
-            assert(all(userRequestedChanRow<=ChannelCount),'Channel numbers must be less than or equal to the total number of channels in the file (%d)',ChannelCount);
-            userRequestedChannels = NSx.MetaTags.ChannelID(userRequestedChanRow);
-            NSx.MetaTags.ChannelCount = length(userRequestedChannels);
-        end
-    else
-        NSx.MetaTags.ChannelCount = length(userRequestedChannels);
-    end
-    
-    if isempty(userRequestedChanRow)
-        userRequestedChanRow = nan(1,length(userRequestedChannels));
-        for idx = 1:length(userRequestedChannels)
-            assert(ismember(userRequestedChannels(idx), NSx.MetaTags.ChannelID),'Channel %d does not exist in this file',userRequestedChannels(idx));
-            userRequestedChanRow(idx) = find(NSx.MetaTags.ChannelID == userRequestedChannels(idx),1);
-        end
-    end
-    numChansToRead = double(length(min(userRequestedChanRow):max(userRequestedChanRow)));
-    
-    % Determining the length of file and storing the value of fEOF
+    %% Identify key points in file
     f.EOexH = double(ftell(FID));
     fseek(FID, 0, 'eof');
     f.EOF = double(ftell(FID));
     
-    % Read Raw Header for saveNSx
-    fseek(FID, 0, 'bof');
-    NSx.RawData.Headers = fread(FID, f.EOexH, '*uint8');
-    % if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
-    NSx.RawData.DataHeader = fread(FID, timeStampBytes+5, '*uint8');
-    % end
-    fseek(FID, f.EOexH, 'bof');
+    %% Save raw headers for saveNSx
+    NSx.RawData.Headers = [uint8(NSx.MetaTags.FileTypeID(:)); basicHeaderBytes(:); extendedHeaderBytes(:)];
     
-    %% Central v7.6.0 needs corrections for PTP clock drift - DK 20230303
-    isPTP = false;
-    if NSx.MetaTags.TimeRes > 1e5
-        PacketSize = 1 + 8 + 4 + ChannelCount*2; % byte (Header) + uint64 (Timestamp) + uint32 (Samples, always 1) + int16*nChan (Data)
-        %npackets = floor((f.EOF - f.EOexH)/PacketSize);
-        fseek(FID,1 + 8,'cof'); % byte (Header) + uint64 (Timestamp)
-        patchcheck = fread(FID,10,'uint32',PacketSize-4);
-        if sum(patchcheck) == length(patchcheck)
-            isPTP = true;
+    %% Determine the number of channels to read
+    if ~flagElectrodeReading
+        if isempty(requestedChanRow)
+            requestedChannels = NSx.MetaTags.ChannelID;
+        else
+            assert(all(requestedChanRow<=channelCount),'Channel numbers must be less than or equal to the total number of channels in the file (%d)',channelCount);
+            requestedChannels = NSx.MetaTags.ChannelID(requestedChanRow);
+            NSx.MetaTags.ChannelCount = length(requestedChannels);
+        end
+    else
+        NSx.MetaTags.ChannelCount = length(requestedChannels);
+    end
+    
+    if isempty(requestedChanRow)
+        requestedChanRow = nan(1,length(requestedChannels));
+        for idx = 1:length(requestedChannels)
+            assert(ismember(requestedChannels(idx), NSx.MetaTags.ChannelID),'Channel %d does not exist in this file',requestedChannels(idx));
+            requestedChanRow(idx) = find(NSx.MetaTags.ChannelID == requestedChannels(idx),1);
         end
     end
-    fseek(FID, f.EOexH, 'bof');
+    numChansToRead = double(length(min(requestedChanRow):max(requestedChanRow)));
     
-    %% Reading all data headers and calculating all the file pointers for data
-    % and headers
+    %% Central v7.6.0 needs corrections for PTP clock drift - DK 20230303
+    if NSx.MetaTags.TimeRes > 1e5
+        packetSize = 1 + 8 + 4 + channelCount*2; % byte (Header) + uint64 (Timestamp) + uint32 (Samples, always 1) + int16*nChan (Data)
+        numPacketsTotal = floor((f.EOF - f.EOexH)/packetSize);
+        fseek(FID, f.EOexH + 1 + 8, 'bof'); % byte (Header) + uint64 (Timestamp)
+        patchCheck = fread(FID,10,'uint32',packetSize-4); % read "samples" counts from 10 packets
+        if sum(patchCheck) == length(patchCheck) % verify all 1
+            flagOneSamplePerPacket = true;
+        end
+    end
+    
+    %% Identify and describe data segments
+    fseek(FID, f.EOexH, 'bof');
     if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALSG')
-        % Determining DataPoints
-        f.BOData = f.EOexH;
-        f.EOData = f.EOF;
-        NSx.MetaTags.DataPoints = double(f.EOF-f.EOexH)/(ChannelCount*2);
+        NSx.MetaTags.Timestamp = 0; % No timestamp otherwise
+        NSx.MetaTags.DataPoints = double(f.EOF-f.EOexH)/(channelCount*2);
         NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints/NSx.MetaTags.SamplingFreq;
     elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP'))
-        % Adding logic for Central v7.6 clock drift - DK 20230303
-        if ~isPTP
-            segmentCount = 0;
-            while double(ftell(FID)) < f.EOF
-                if (fread(FID, 1, 'uint8') ~= 1)
-                    % Fixing another bug in Central 6.01.00.00 TOC where DataPoints is
-                    % not written back into the Data Header
-                    %% BIG NEEDS TO BE FIXED
-                    NSx.MetaTags.DataPoints = floor(double(f.EOF - f.BOData)/(ChannelCount*2));
-                    NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints/NSx.MetaTags.SamplingFreq;
-                    break;
-                end
-                segmentCount = segmentCount + 1;
-                if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
-                    startTimeStamp = fread(FID, 1, 'uint32');
-                elseif strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP')
-                    startTimeStamp = fread(FID, 1, 'uint64');
-                end
-                if multinsp
-                    
-                    % close existing (read-only) file descriptor
-                    curr_pos = ftell(FID);
-                    fclose(FID);
-                    
-                    % open a file descriptor for read/write, write, and close
-                    FID = fopen([path fname], 'r+', 'ieee-le');
-                    startTimeStamp = startTimeStamp + syncShift;
-                    fseek(FID, -timeStampBytes, 'cof');
-                    fwrite(FID, startTimeStamp, '*uint32');
-                    fclose(FID);
-                    
-                    % re-open read-only and seek to remembered position
-                    FID = fopen([path fname], 'r', 'ieee-le');
-                    fseek(FID,curr_pos,'bof');
-                end
-                NSx.MetaTags.Timestamp(segmentCount)  = startTimeStamp;
-                NSx.MetaTags.DataPoints(segmentCount) = fread(FID, 1, 'uint32=>double');
-                NSx.MetaTags.DataDurationSec(segmentCount) = NSx.MetaTags.DataPoints(segmentCount)/NSx.MetaTags.SamplingFreq;
-                file.MetaTags.DataDurationTimeRes(segmentCount) = startTimeStamp*NSx.MetaTags.TimeRes/NSx.MetaTags.SamplingFreq;
-                f.BOData(segmentCount) = double(ftell(FID));
-                fseek(FID, NSx.MetaTags.DataPoints(segmentCount) * ChannelCount * 2, 'cof');
-                f.EOData(segmentCount) = double(ftell(FID));
-                % Fixing the bug in 6.01.00.00 TOC where DataPoints is not
-                % updated and is left as 0
-                % NSx.MetaTags.DataPoints(segmentCount) = (f.EOData(segmentCount)-f.BOData(segmentCount))/(ChannelCount*2);
-            end
-        else
+        if flagOneSamplePerPacket
             
             % Clock drift patch kills ability to segment files. This check will
             % allow segments to be reintroduced into the data structures if a
@@ -771,92 +735,151 @@ try
             % larger than expected given consistent sampling rates, define a
             % segment.
             % Move to the next frame.
-            ticks_per_sample = NSx.MetaTags.TimeRes/NSx.MetaTags.SamplingFreq;
-            minimum_pause_length = max_tick_multiple*ticks_per_sample;
-            timestamp_first = fread(FID,1,'uint64');
-            num_packets_processed = 0;
-            segment_timestamps = nan(1,1e3);
-            segment_timestamps(1) = timestamp_first;
-            segment_datapoints = nan(1,1e3);
-            segment_durations = nan(1,1e3);
-            curr_segment = 1;
-            while double(ftell(FID)) < (f.EOF-(PacketSize-1-8))
+            ticksPerSample = NSx.MetaTags.TimeRes/NSx.MetaTags.SamplingFreq;
+            minimumPauseLength = requestedMaxTickMultiple*ticksPerSample;
+            timestampFirst = fread(FID,1,'uint64');
+            numPacketsProcessed = 0;
+            segmentTimestamps = nan(1,1e3);
+            segmentTimestamps(1) = timestampFirst;
+            segmentDatapoints = nan(1,1e3);
+            segmentDurations = nan(1,1e3);
+            currSegment = 1;
+            while double(ftell(FID)) < (f.EOF-(packetSize-1-8))
                 
                 % frames have 'packets_per_frame' packets until the end of the
                 % file, when the frame may have fewer packets
                 % number of packets per frame includes first/last packet, which
                 % means there is one fewer gap than the number of packets
-                curr_packet_start_byte = double(ftell(FID)) - 8 - 1;
-                frame_num_packets = min(packets_per_frame, (f.EOF - curr_packet_start_byte)/PacketSize);
-                if abs(round(frame_num_packets)-frame_num_packets)>0.1
+                currPacketStartByte = double(ftell(FID)) - 8 - 1;
+                frameNumPackets = min(requestedPacketsPerFrame, (f.EOF - currPacketStartByte)/packetSize);
+                if abs(round(frameNumPackets)-frameNumPackets)>0.1
                     warning('File not packet-aligned')
                 end
-                bytes_to_last_frame_timestamp = PacketSize*(frame_num_packets-1) - 8;
+                bytesToFrameLastTimestamp = packetSize*(frameNumPackets-1) - 8;
                 
                 % compute the ticks expected to elapse in this frame with the
                 % smallest detectable pause (2x sample time, or 66.6 usec)
-                expected_ticks_elapsed_nopause = (frame_num_packets-1) * ticks_per_sample;
-                expected_ticks_elapsed_minpause = expected_ticks_elapsed_nopause + (minimum_pause_length - ticks_per_sample);
+                expectedTicksElapsedNoPause = (frameNumPackets-1) * ticksPerSample;
+                expectedTicksElapsedMinPause = expectedTicksElapsedNoPause + (minimumPauseLength - ticksPerSample);
                 
                 % seek to last packet of this frame and read timestamp
-                fseek(FID, bytes_to_last_frame_timestamp, 'cof');
-                timestamp_last = fread(FID,1,'uint64');
+                fseek(FID, bytesToFrameLastTimestamp, 'cof');
+                timestampLast = fread(FID,1,'uint64');
                 
                 % check whether elapsed time for this frame meets or exceeds
                 % expected length with minimum gap
-                actual_ticks_elapsed = timestamp_last - timestamp_first;
-                if actual_ticks_elapsed >= expected_ticks_elapsed_minpause
+                actualTicksElapsed = timestampLast - timestampFirst;
+                if actualTicksElapsed >= expectedTicksElapsedMinPause
                     
                     % a gap exists in this frame; we need to identify where it
                     % occurs
                     % save file pointer position
-                    curr_pos = ftell(FID);
+                    currBytePosition = ftell(FID);
                     
                     % rewind to prior last_timestamp
-                    fseek(FID, -(bytes_to_last_frame_timestamp+8+8), 'cof');
+                    fseek(FID, -(bytesToFrameLastTimestamp+8+8), 'cof');
                     
                     % read all timestamps in this frame
-                    timestamps = fread(FID, frame_num_packets, 'uint64', PacketSize-8)';
+                    timestamps = fread(FID, frameNumPackets, 'uint64', packetSize-8)';
                     
                     % find gaps and store if found
-                    ts_diffs = diff(timestamps);
-                    vals = find(ts_diffs > minimum_pause_length);
+                    tsDiffs = diff(timestamps);
+                    vals = find(tsDiffs > minimumPauseLength);
                     for jj=1:length(vals)
-                        num_datapoints_last_segment = num_packets_processed - nansum(segment_datapoints) + vals(jj);
-                        segment_datapoints(curr_segment) = num_datapoints_last_segment;
-                        segment_durations(curr_segment) = timestamps(vals(jj)) - segment_timestamps(curr_segment) + 1;
-                        segment_timestamps(curr_segment + 1) = timestamps(vals(jj) + 1);
-                        curr_segment = curr_segment + 1;
+                        numDatapointsLastSegment = numPacketsProcessed - nansum(segmentDatapoints) + vals(jj);
+                        segmentDatapoints(currSegment) = numDatapointsLastSegment;
+                        segmentDurations(currSegment) = timestamps(vals(jj)) - segmentTimestamps(currSegment) + 1;
+                        segmentTimestamps(currSegment + 1) = timestamps(vals(jj) + 1);
+                        currSegment = currSegment + 1;
                     end
                     
                     % restore file pointer position
-                    fseek(FID, curr_pos, 'bof');
+                    fseek(FID, currBytePosition, 'bof');
                 end
                 
                 % update for next round
                 % -1 on the number of packets processed because the last packet
                 % is included in the next frame also
-                timestamp_first = timestamp_last;
-                num_packets_processed = num_packets_processed + frame_num_packets - 1;
+                timestampFirst = timestampLast;
+                numPacketsProcessed = numPacketsProcessed + frameNumPackets - 1;
             end
-            num_packets_processed = num_packets_processed + 1; % account for the overlapped sample on each frame
-            assert(num_packets_processed == (f.EOF - f.EOexH)/PacketSize, 'Incosistent number of packets processed (%d) versus number of packets in file (%d)',num_packets_processed,(f.EOF-f.EOexH)/PacketSize);
+            numPacketsProcessed = numPacketsProcessed + 1; % account for the overlapped sample on each frame
+            assert(numPacketsProcessed == numPacketsTotal, 'Incosistent number of packets processed (%d) versus number of packets in file (%d)',numPacketsProcessed,(f.EOF-f.EOexH)/packetSize);
             
             % compute number of datapoints in the last segment
             % add one to the number of packets processed to account for the
             % last packet of the file not being included in a subsequent frame
-            segment_datapoints(curr_segment) = num_packets_processed - nansum(segment_datapoints);
-            segment_durations(curr_segment) = timestamp_last - segment_timestamps(curr_segment) + 1;
+            segmentDatapoints(currSegment) = numPacketsProcessed - nansum(segmentDatapoints);
+            segmentDurations(currSegment) = timestampLast - segmentTimestamps(currSegment) + 1;
             
             % add into NSx structure
-            NSx.MetaTags.Timestamp = segment_timestamps(1:curr_segment);
-            NSx.MetaTags.DataPoints = segment_datapoints(1:curr_segment);
-            NSx.MetaTags.DataDurationSec = segment_durations(1:curr_segment)/NSx.MetaTags.TimeRes;
-            file.MetaTags.DataDurationTimeRes = segment_durations(1:curr_segment);
-            
-            % may or may not be required
-            f.BOData = [f.EOexH+1+8+4 f.EOexH+1+8+4+PacketSize*cumsum(segment_datapoints(1:curr_segment-1))];
-            f.EOData = f.EOexH + PacketSize*cumsum(segment_datapoints(1:curr_segment));
+            NSx.MetaTags.Timestamp = segmentTimestamps(1:currSegment);
+            NSx.MetaTags.DataPoints = segmentDatapoints(1:currSegment);
+            NSx.MetaTags.DataDurationSec = segmentDurations(1:currSegment)/NSx.MetaTags.TimeRes;
+            file.MetaTags.DataDurationTimeRes = segmentDurations(1:currSegment);
+        else
+            segmentCount = 0;
+            while double(ftell(FID)) < f.EOF
+                headerByte = fread(FID, 1, 'uint8=>double');
+                if headerByte ~= 1
+                    % Fixing another bug in Central 6.01.00.00 TOC where DataPoints is
+                    % not written back into the Data Header
+                    %% BIG NEEDS TO BE FIXED
+                    NSx.MetaTags.DataPoints = floor(double(f.EOF - (f.EOexH+1+timestampSize+4))/(channelCount*2));
+                    NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints/NSx.MetaTags.SamplingFreq;
+                    break;
+                end
+                segmentCount = segmentCount + 1;
+                if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD')
+                    startTimestamp = fread(FID, 1, 'uint32');
+                elseif strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP')
+                    startTimestamp = fread(FID, 1, 'uint64');
+                end
+                if flagMultiNSP
+                    
+                    % close existing (read-only) file descriptor
+                    currBytePosition = ftell(FID);
+                    fclose(FID);
+                    
+                    % open a file descriptor for read/write, write, and close
+                    FID = fopen([requestedFilePath requestedFileName], 'r+', 'ieee-le');
+                    startTimestamp = startTimestamp + syncShift;
+                    fseek(FID, -timestampSize, 'cof');
+                    fwrite(FID, startTimestamp, '*uint32');
+                    fclose(FID);
+                    
+                    % re-open read-only and seek to remembered position
+                    FID = fopen([requestedFilePath requestedFileName], 'r', 'ieee-le');
+                    fseek(FID,currBytePosition,'bof');
+                end
+                NSx.MetaTags.Timestamp(segmentCount) = startTimestamp;
+                NSx.MetaTags.DataPoints(segmentCount) = fread(FID, 1, 'uint32=>double');
+                NSx.MetaTags.DataDurationSec(segmentCount) = NSx.MetaTags.DataPoints(segmentCount)/NSx.MetaTags.SamplingFreq;
+                file.MetaTags.DataDurationTimeRes(segmentCount) = startTimestamp*NSx.MetaTags.TimeRes/NSx.MetaTags.SamplingFreq;
+                fseek(FID, NSx.MetaTags.DataPoints(segmentCount) * channelCount * 2, 'cof');
+
+                % Fixing the bug in 6.01.00.00 TOC where DataPoints is not
+                % updated and is left as 0
+                % NSx.MetaTags.DataPoints(segmentCount) = (f.EOData(segmentCount)-f.BOData(segmentCount))/(ChannelCount*2);
+            end
+        end
+    end
+    
+    %% Calculate file pointers for data
+    if strcmpi(NSx.MetaTags.FileTypeID, 'NEURALSG')
+        % Determining DataPoints
+        f.BOData = f.EOexH;
+        f.EOData = f.EOF;
+    elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP'))
+        byteOffset = 1 + timestampSize + 4;
+        if flagOneSamplePerPacket
+            segmentOffset = f.EOexH;
+            f.BOData = segmentOffset + byteOffset + [0 packetSize*cumsum(NSx.MetaTags.DataPoints(1:end-1))];
+            f.EOData = segmentOffset + packetSize*cumsum(NSx.MetaTags.DataPoints);
+        else
+            segmentOffset = f.EOexH + (1:length(NSx.MetaTags.DataPoints))*byteOffset;
+            f.BOData = segmentOffset + [0 cumsum(channelCount*NSx.MetaTags.DataPoints(1:end-1)*2)];
+            f.EOData = segmentOffset + 2*channelCount*cumsum(NSx.MetaTags.DataPoints) - 1;
         end
     end
     
@@ -866,259 +889,213 @@ try
     end
     
     
-    %% Added by NH - Feb 19, 2014
-    % Create incrementing loop to skip from dataheader to dataheader and
-    % collect the dataheader data in individual cells
-    headerCount = 0;
-    % Adding logic for Central v7.6 clock drift - DK 20230303
-    if and(NSx.RawData.PausedFile == 1, ~isPTP)
-        DataHeader = cell(1,1e3);
-        DataPoints = cell(1,1e3);
-        while double(ftell(FID)) < f.EOF
-            headerCount = headerCount + 1;
-            fseek(FID, f.EOexH, 'bof');
-            DataHeader{headerCount} = fread(FID, 9, '*uint8');
-            DataPoints(headerCount) = typecast(DataHeader{headerCount}(6:9), 'uint32');
-            
-            f.BOData(headerCount) = double(ftell(FID));
-            fseek(FID, DataPoints(headerCount) * ChannelCount * 2, 'cof');
-            f.EOData(headerCount) = double(ftell(FID));
-        end
-        
-        % Create an array that will contain all of the dataheader data
-        % collected in the cells above
-        FinalDataHeader = [];
-        
-        %Fill the above mentioned pre-created array
-        for i = 1:headerCount
-            FinalDataHeader = cat(1,FinalDataHeader,DataHeader(i));
-        end
-        
-        % Convert to correct type for interpreting in separatingPausedNSx
-        FinalDataHeader = cell2mat(FinalDataHeader);
-        
-        NSx.RawData.DataHeader = FinalDataHeader;
-        
-        fseek(FID, f.EOexH, 'bof');
+    %% Save data headers for saveNSx
+    dataHeaderBytes = cell(1,length(f.BOData));
+    for ss = 1:length(f.BOData)
+        headerByteSize = 1 + timestampSize + 4;
+        fseek(FID, f.BOData(ss)-headerByteSize, 'bof');
+        dataHeaderBytes{ss} = fread(FID, headerByteSize, '*uint8');
     end
+    NSx.RawData.DataHeader = cat(1,dataHeaderBytes{:});
     
-    %% Removing extra ElectrodesInfo for channels not read
+    
+    %% Remove extra ElectrodesInfo for channels not read
     if or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP'))
         for headerIDX = length(NSx.ElectrodesInfo):-1:1
-            if ~ismember(headerIDX, userRequestedChanRow)
+            if ~ismember(headerIDX, requestedChanRow)
                 NSx.ElectrodesInfo(headerIDX) = [];
             end
         end
     end
     
-    %% Adjusts StartPacket and EndPacket based on what time setting (sec, min,
-    %  hour, or packets) the user has indicated in the input argument.
-    if ~modifiedTime
-        StartPacket = 1;
-        EndPacket = sum(NSx.MetaTags.DataPoints);
+    %% Identify and validate requested first and last data points
+    % Note that new files that use precision time protocol (PTP), for which
+    % there is one sample per packet and hence the user request translates
+    % to a starting and ending data packet. In older NSx files, there were
+    % multiple samples per packet and the user request is for a starting
+    % sample (which would exist inside a data packet). This code refers to
+    % "data points" as a broad term to encapsulate both scenarios.
+    if ~flagModifiedTime
+        
+        % default whole file
+        requestedStartDataPoint = 1;
+        requestedEndDataPoint = sum(NSx.MetaTags.DataPoints);
     else
-        % needs to be updated to use knowledge of sample-by-sample timestamps in
-        % Gemini files
-        switch TimeScale
+        
+        % TO-DO: utilize Gemini sample-by-sample timestamps
+        switch requestedTimeScale
             case {'sec', 'secs', 'second', 'seconds'}
-                StartPacket = StartPacket * NSx.MetaTags.SamplingFreq + 1;
-                EndPacket = EndPacket * NSx.MetaTags.SamplingFreq;
+                
+                % conver seconds to samples
+                requestedStartDataPoint = requestedStartValue * NSx.MetaTags.SamplingFreq + 1;
+                requestedEndDataPoint = requestedEndValue * NSx.MetaTags.SamplingFreq;
             case {'min', 'mins', 'minute', 'minutes'}
-                StartPacket = StartPacket * NSx.MetaTags.SamplingFreq * 60 + 1;
-                EndPacket = EndPacket * NSx.MetaTags.SamplingFreq * 60;
+                
+                % convert minutes to samples
+                requestedStartDataPoint = requestedStartValue * NSx.MetaTags.SamplingFreq * 60 + 1;
+                requestedEndDataPoint = requestedEndValue * NSx.MetaTags.SamplingFreq * 60;
             case {'hour', 'hours'}
-                StartPacket = StartPacket * NSx.MetaTags.SamplingFreq * 3600 + 1;
-                EndPacket = EndPacket * NSx.MetaTags.SamplingFreq * 3600;
+                
+                % convert hours to samples
+                requestedStartDataPoint = requestedStartValue * NSx.MetaTags.SamplingFreq * 3600 + 1;
+                requestedEndDataPoint = requestedEndValue * NSx.MetaTags.SamplingFreq * 3600;
+            case {'sample','samples'}
+                
+                % carry over samples
+                requestedStartDataPoint = requestedStartValue;
+                requestedEndDataPoint = requestedEndValue;
+            otherwise
+                
+                % should never get here based on input argument processing
+                error('Unknown requested time scale');
         end
     end
     
-    %% Validate StartPacket and EndPacket to make sure they do not exceed the
-    %  length of packets in the file. If EndPacket is over then the last packet
-    %  will be set for EndPacket. If StartPacket is over then will exist with an
-    %  error message.
-    assert(EndPacket>StartPacket,'Start packet (%d) must be less than the end packet (%d)',StartPacket,EndPacket);
-    if StartPacket <= 0
-        warning('Start packet (%d) must be greater than or equal to 1; updating to comply.',StartPacket);
-        StartPacket = 1;
+    % validate start and end data points
+    assert(requestedEndDataPoint>=requestedStartDataPoint,'Start data point (%d) must be less than the end data point (%d)',requestedStartDataPoint,requestedEndDataPoint);
+    assert(requestedStartDataPoint<=sum(NSx.MetaTags.DataPoints),'Start data point (%d) is greater than total number of data point (%d)',requestedStartDataPoint,sum(NSx.MetaTags.DataPoints));
+    if requestedStartDataPoint <= 0
+        warning('Start data point (%d) must be greater than or equal to 1; updating to comply.',requestedStartDataPoint);
+        requestedStartDataPoint = 1;
     end
-    if EndPacket > sum(NSx.MetaTags.DataPoints)
-        assert(StartPacket<sum(NSx.MetaTags.DataPoints),'Start packet (%d) is greater than total number of packets (%d)',StartPacket,sum(NSx.MetaTags.DataPoints));
-        warning('End packet (%d) must be less than or equal to the total number of packets (%d).',EndPacket,sum(NSx.MetaTags.DataPoints));
-        response = input('Do you wish to update EndPacket to last packet and continue? (y/N) ', 's');
+    if requestedEndDataPoint > sum(NSx.MetaTags.DataPoints)
+        warning('End data point (%d) must be less than or equal to the total number of data points (%d).',requestedEndDataPoint,sum(NSx.MetaTags.DataPoints));
+        response = input('Do you wish to update the last requested data point to last one available in the file and continue? (y/N) ', 's');
         if strcmpi(response,'y')
-            EndPacket = sum(NSx.MetaTags.DataPoints);
+            requestedEndDataPoint = sum(NSx.MetaTags.DataPoints);
         else
-            error('Invalid EndPacket');
+            error('Invalid last requested data point');
         end
     end
     
-    % Adjusting the endPacket for the skipFactor to reduce the length of
-    % the data read.
-    % DEBUG: This is not needed since the same length of data is to be
-    % read.
-    EndPacket = EndPacket / skipFactor;
+    % calculate total number of data points requested
+    numDataPointsRequested = requestedEndDataPoint - requestedStartDataPoint + 1;
     
-    % Finding which data segment the StartPacket is falling in-between
-    % Adding logic for Central v7.6 clock drift - DK 20230303
-    segmentCounters = nan(1,2);
+    %% Identify data segments containing requested packets
+    requestedSegments = nan(1,2); % first and last requested segments
     startTimeStampShift = 0;
-    if NSx.RawData.PausedFile
-        dataPointOfInterest = StartPacket;
-        segmentStartPacket = zeros(1,length(NSx.MetaTags.DataPoints));
+    
+    % user requested specific data points: look for start/end segments
+    % containing these data points
+    if flagModifiedTime
+        dataPointOfInterest = requestedStartDataPoint;
+        segmentStartDataPoint = zeros(1,length(NSx.MetaTags.DataPoints));
         segmentDataPoints = zeros(1,length(NSx.MetaTags.DataPoints));
-        for idx = 1:length(NSx.MetaTags.DataPoints)
-            if dataPointOfInterest <= sum(NSx.MetaTags.DataPoints(1:idx))
-                if all(isnan(segmentCounters))
-                    if idx == 1
-                        segmentStartPacket(idx) = dataPointOfInterest;
+        for currSegment = 1:length(NSx.MetaTags.DataPoints)
+            if dataPointOfInterest <= sum(NSx.MetaTags.DataPoints(1:currSegment))
+                if all(isnan(requestedSegments))
+                    if currSegment == 1
+                        segmentStartDataPoint(currSegment) = dataPointOfInterest;
                     else
-                        segmentStartPacket(idx) = dataPointOfInterest - sum(NSx.MetaTags.DataPoints(1:idx-1));
+                        segmentStartDataPoint(currSegment) = dataPointOfInterest - sum(NSx.MetaTags.DataPoints(1:currSegment-1));
                     end
-                    startTimeStampShift = (segmentStartPacket(idx)-1) * NSx.MetaTags.TimeRes / NSx.MetaTags.SamplingFreq;
-                    if EndPacket <= sum(NSx.MetaTags.DataPoints(1:idx))
-                        segmentDataPoints(idx) = EndPacket - sum(NSx.MetaTags.DataPoints(1:idx-1)) - segmentStartPacket(idx) + 1;
-                        segmentCounters = [idx idx];
+                    startTimeStampShift = (segmentStartDataPoint(currSegment)-1) * NSx.MetaTags.TimeRes / NSx.MetaTags.SamplingFreq;
+                    if requestedEndDataPoint <= sum(NSx.MetaTags.DataPoints(1:currSegment))
+                        segmentDataPoints(currSegment) = requestedEndDataPoint - sum(NSx.MetaTags.DataPoints(1:currSegment-1)) - segmentStartDataPoint(currSegment) + 1;
+                        requestedSegments = [currSegment currSegment];
                         break;
                     end
-                    segmentDataPoints(idx) = sum(NSx.MetaTags.DataPoints(1:idx)) - dataPointOfInterest + 1;
-                    dataPointOfInterest = EndPacket;
+                    segmentDataPoints(currSegment) = sum(NSx.MetaTags.DataPoints(1:currSegment)) - dataPointOfInterest + 1;
+                    dataPointOfInterest = requestedEndDataPoint;
                 else
-                    segmentStartPacket(idx) = 1;
-                    if idx == 1
-                        segmentDataPoints(idx) = dataPointOfInterest;
+                    segmentStartDataPoint(currSegment) = 1;
+                    if currSegment == 1
+                        segmentDataPoints(currSegment) = dataPointOfInterest;
                     else
-                        segmentDataPoints(idx) = dataPointOfInterest - sum(NSx.MetaTags.DataPoints(1:idx-1));
-                        segmentCounters(2) = idx;
+                        segmentDataPoints(currSegment) = dataPointOfInterest - sum(NSx.MetaTags.DataPoints(1:currSegment-1));
+                        requestedSegments(2) = currSegment;
                     end
                     break;
                 end
-                segmentCounters(1) = idx;
+                requestedSegments(1) = currSegment;
             else
-                if all(isnan(segmentCounters))
-                    segmentStartPacket(idx) = NSx.MetaTags.DataPoints(idx);
-                    segmentDataPoints(idx) = 0;
-                elseif isnan(segmentCounters(2))
-                    segmentStartPacket(idx) = 1;
-                    segmentDataPoints(idx) = NSx.MetaTags.DataPoints(idx);
+                if all(isnan(requestedSegments))
+                    segmentStartDataPoint(currSegment) = NSx.MetaTags.DataPoints(currSegment);
+                    segmentDataPoints(currSegment) = 0;
+                elseif isnan(requestedSegments(2))
+                    segmentStartDataPoint(currSegment) = 1;
+                    segmentDataPoints(currSegment) = NSx.MetaTags.DataPoints(currSegment);
                 else
-                    segmentStartPacket(idx) = 1;
-                    segmentDataPoints(idx) = 0;
+                    segmentStartDataPoint(currSegment) = 1;
+                    segmentDataPoints(currSegment) = 0;
                 end
             end
         end
+    else
+        requestedSegments = [1 length(f.BOData)];
+        segmentStartDataPoint = ones(1,length(f.BOData));
+        segmentDataPoints = NSx.MetaTags.DataPoints;
     end
     
-    DataLength = EndPacket - StartPacket + 1;
     
-    % from now StartPacket and EndPacket are in terms of Samples and are zero-based
-    clear TimeScale
-    
-    %% Reading the data if flag 'read' is used
+    %% Read data
     file.MetaTags.DataPoints = NSx.MetaTags.DataPoints;
     file.MetaTags.DataDurationSec = NSx.MetaTags.DataDurationSec;
     file.MetaTags.Timestamp = NSx.MetaTags.Timestamp;
-    if ReadData
-        % Adding logic for Central v7.6 clock drift - DK 20230303
-        if ~isPTP
+    if flagReadData
+        
+        % loop over requested data segments
+        NSx.Data = cell(1,diff(requestedSegments)+1);
+        for currSegment = requestedSegments(1):requestedSegments(2)
+            outputSegment = currSegment - requestedSegments(1) + 1;
             
-            % Determine what channels to read
-            if NSx.RawData.PausedFile
-                NSx.Data = cell(1,diff(segmentCounters(1:2))+1);
-                for dataIDX = segmentCounters(1):segmentCounters(2) %1:length(NSx.MetaTags.DataPoints)
-                    cellIDX = dataIDX - segmentCounters(1) + 1;
-                    fseek(FID, f.BOData(dataIDX), 'bof');
-                    % Skip the file to the beginning of the time requsted, if not 0
-                    fseek(FID, (segmentStartPacket(dataIDX) - 1) * 2 * ChannelCount, 'cof');
-                    % Skip the file to the first channel to read
-                    fseek(FID, (find(NSx.MetaTags.ChannelID == min(userRequestedChannels))-1) * 2, 'cof');
-                    % Read data
-                    NSx.Data{cellIDX} = fread(FID, [numChansToRead segmentDataPoints(dataIDX)], sprintf('%d*int16=>%s',numChansToRead,precisionType), double((ChannelCount-numChansToRead)*2 + ChannelCount*(skipFactor-1)*2));
-                end
-                
-                NSx.MetaTags.Timestamp = NSx.MetaTags.Timestamp(segmentCounters(1):segmentCounters(2));
-                NSx.MetaTags.Timestamp(1) = NSx.MetaTags.Timestamp(1) + startTimeStampShift;
-                NSx.MetaTags.DataPoints = cellfun(@(x) size(x,2), NSx.Data, 'UniformOutput', true);
-                NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataDurationSec(segmentCounters(1):segmentCounters(2));
-                NSx.MetaTags.DataDurationSec(1) = NSx.MetaTags.DataDurationSec(1) - (segmentStartPacket(segmentCounters(1))-1)/NSx.MetaTags.SamplingFreq;
-                NSx.MetaTags.DataDurationSec(end) = NSx.MetaTags.DataPoints(end)/NSx.MetaTags.SamplingFreq;
-            else
-                fseek(FID, f.BOData(1), 'bof');
-                % Skip the file to the beginning of the time requsted, if not 0
-                fseek(FID, (StartPacket - 1) * 2 * ChannelCount, 'cof');
-                % Skip the file to the first channel to read
-                fseek(FID, (find(NSx.MetaTags.ChannelID == min(userRequestedChannels))-1) * 2, 'cof');
-                % Read data
-                NSx.Data = {fread(FID, [numChansToRead DataLength], sprintf('%d*int16=>%s',numChansToRead,precisionType), double((ChannelCount-numChansToRead)*2 + ChannelCount*(skipFactor-1)*2))};
-                
-                NSx.MetaTags.Timestamp(1) = NSx.MetaTags.Timestamp(1) + startTimeStampShift;
-                NSx.MetaTags.DataPoints = size(NSx.Data{1},2);
-                NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints/NSx.MetaTags.SamplingFreq;
-            end
-        else
+            % seek to start of data
+            fseek(FID, f.BOData(currSegment), 'bof');
             
-            if NSx.RawData.PausedFile
-                NSx.Data = cell(1,diff(segmentCounters)+1);
-                for dataIDX = segmentCounters(1):segmentCounters(2)
-                    cellIDX = dataIDX - segmentCounters(1) + 1;
-                    fseek(FID, f.BOData(dataIDX), 'bof');
-                    fseek(FID, (segmentStartPacket(dataIDX) - 1) * PacketSize, 'cof');
-                    fseek(FID, (find(NSx.MetaTags.ChannelID == min(userRequestedChannels))-1) * 2, 'cof');
-                    NSx.Data{cellIDX} = fread(FID, [numChansToRead segmentDataPoints(dataIDX)], sprintf('%d*int16=>%s',numChansToRead,precisionType), PacketSize - numChansToRead*2);
-                end
-                
-                % define user tags: info specific to data being read
-                NSx.MetaTags.Timestamp = NSx.MetaTags.Timestamp(segmentCounters(1):segmentCounters(2));
-                NSx.MetaTags.Timestamp(1) = NSx.MetaTags.Timestamp(1) + startTimeStampShift;
-                NSx.MetaTags.DataPoints = cellfun(@(x) size(x,2), NSx.Data, 'UniformOutput', true);
-                NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataDurationSec(segmentCounters(1):segmentCounters(2));
-                NSx.MetaTags.DataDurationSec(1) = NSx.MetaTags.DataDurationSec(1) - (segmentStartPacket(segmentCounters(1))-1)/NSx.MetaTags.SamplingFreq;
-                NSx.MetaTags.DataDurationSec(end) = NSx.MetaTags.DataPoints(end)/NSx.MetaTags.SamplingFreq;
+            % seek to first requested packet in the current segment
+            if flagOneSamplePerPacket
+                fseek(FID, (segmentStartDataPoint(currSegment) - 1) * packetSize, 'cof');
             else
-                % seek to start of data
-                fseek(FID, f.BOData, 'bof');
-                
-                % seek to start of requested data
-                % at this point, each packet retains the full header so we seek in
-                % multiples of the PacketSize
-                fseek(FID, (StartPacket - 1) * PacketSize, 'cof');
-                
-                % skip to first channel to read
-                % within the packet, we only skip past 2-byte samples for the
-                % unwanted channels
-                fseek(FID, (find(NSx.MetaTags.ChannelID == min(userRequestedChannels))-1) * 2, 'cof');
-                
-                % read the data
-                NSx.Data = {fread(FID, [numChansToRead DataLength], sprintf('%d*int16=>%s',numChansToRead,precisionType), PacketSize - numChansToRead*2)};
-                
-                % define user tags: info specific to data being read
-                NSx.MetaTags.DataPoints = size(NSx.Data{1},2);
-                NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataPoints/NSx.MetaTags.SamplingFreq;
-                NSx.MetaTags.Timestamp = NSx.MetaTags.Timestamp;
-                NSx.MetaTags.Timestamp(1) = NSx.MetaTags.Timestamp(1) + startTimeStampShift;
+                fseek(FID, (segmentStartDataPoint(currSegment) - 1) * 2 * channelCount, 'cof');
             end
+            
+            % seek to first requested channel in the current packet
+            fseek(FID, (find(NSx.MetaTags.ChannelID == min(requestedChannels))-1) * 2, 'cof');
+            
+            % set up parameters for reading data
+            precisionString = sprintf('%d*int16=>%s',numChansToRead,requestedPrecisionType);
+            outputDimensions = [numChansToRead floor(segmentDataPoints(currSegment)/requestedSkipFactor)];
+            if flagOneSamplePerPacket
+                bytesToSkipNormal = packetSize - 2*numChansToRead; % standard (i.e., skip factor==1)
+                bytesSkipFactor = packetSize*(requestedSkipFactor - 1); % additional to skip (skip factor > 1)
+            else
+                bytesToSkipNormal = 2*(channelCount - numChansToRead);
+                bytesSkipFactor = 2*channelCount*(requestedSkipFactor-1);
+            end
+            bytesToSkip = bytesToSkipNormal + bytesSkipFactor; % total
+            
+            % read data
+            NSx.Data{outputSegment} = fread(FID, outputDimensions, precisionString, bytesToSkip);
+            
+            % define user tags: info specific to data being read
+            NSx.MetaTags.Timestamp = NSx.MetaTags.Timestamp(requestedSegments(1):requestedSegments(2));
+            NSx.MetaTags.Timestamp(1) = NSx.MetaTags.Timestamp(1) + startTimeStampShift;
+            NSx.MetaTags.DataPoints = cellfun(@(x) size(x,2), NSx.Data, 'UniformOutput', true);
+            NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataDurationSec(requestedSegments(1):requestedSegments(2));
+            NSx.MetaTags.DataDurationSec(1) = NSx.MetaTags.DataDurationSec(1) - (segmentStartDataPoint(requestedSegments(1))-1)/NSx.MetaTags.SamplingFreq;
+            NSx.MetaTags.DataDurationSec(end) = NSx.MetaTags.DataPoints(end)/NSx.MetaTags.SamplingFreq;
         end
+        
+        % verify amount of data read from disk
+        assert(sum(cellfun(@(x)size(x,2),NSx.Data))==floor(numDataPointsRequested/requestedSkipFactor),'Did not read the requested number of data points');
     end
 catch ME
     fclose(FID);
     rethrow(ME);
 end
+fclose(FID);
 
-%% Fixing a bug in 6.03 TOC where an extra 0-length packet is introduced
-if NSx.RawData.PausedFile && ReadData && ~isPTP
-    if isempty(NSx.Data{1})
-        NSx.Data = cell2mat(NSx.Data(2));
-    end
-end
-
-% Fixing a bug in 6.03 where data packets with 0 lengh may be added
-if any(NSx.MetaTags.DataPoints == 0) && ReadData
+%% Bug fix
+% Fix a bug in 6.03 where data packets with 0 length may be added
+if any(NSx.MetaTags.DataPoints == 0) && flagReadData
     segmentsThatAreZero = find(NSx.MetaTags.DataPoints == 0);
     NSx.MetaTags.DataPoints(segmentsThatAreZero) = [];
+    NSx.MetaTags.DataDurationSec(segmentsThatAreZero) = [];
     NSx.MetaTags.Timestamp(segmentsThatAreZero) = [];
     NSx.Data(segmentsThatAreZero) = [];
 end
 
-%% Removing extra channels that were read, but weren't supposed to be read
+%% Remove extra channels that were read, but weren't supposed to be read
 % Commenting this section out since I think that previous code should
 % capture this - DK 20230303
 % channelThatWereRead = min(userRequestedChanRow):max(userRequestedChanRow);
@@ -1133,129 +1110,161 @@ end
 %     end
 % end
 
-%% Adjusting the ChannelID variable to match the read electrodes
-channelIDToDelete = setdiff(1:ChannelCount, userRequestedChanRow);
+%% Adjust the ChannelID variable to match the read electrodes
+channelIDToDelete = setdiff(1:channelCount, requestedChanRow);
 NSx.MetaTags.ChannelID(channelIDToDelete) = [];
 
-%% Adjusting the file for a non-0 timestamp start
-if strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP') && zeropad
-    NPMKSettings = settingsManager;
-    if NSx.MetaTags.Timestamp(1) > 30000 && NPMKSettings.ShowZeroPadWarning == 1
-        if isPTP
-            error('PTP time has nanosecond precision. Data will generate too many zeros with "zeropad" argument.\n%s',...
-                'Align data instead using NSx.MetaTags.Timestamp. Contact Blackrock Support for help adjusting your analysis workflows.');
+%% Zero-pad data if requested
+if flagZeroPad
+    
+    % compute how many zeros and total number of values to add
+    numZerosToAdd = floor(NSx.MetaTags.Timestamp(currSegment) / requestedSkipFactor);
+    if flagMultiNSP
+        numZerosToAdd = numZerosToAdd + syncShift;
+    end
+    numValuesToAdd = NSx.MetaTags.ChannelCount * numZerosToAdd;
+    
+    % sanity check
+    if strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP')
+        
+        % calculate how many values and how many bytes
+        numValuesOfData = sum(cellfun(@numel,NSx.Data));
+        if strcmpi(requestedPrecisionType,'int16')
+            numBytesToAdd = numValuesToAdd*2;
+            numBytesOfData = numValuesOfData*2;
+        elseif strcmpi(requestedPrecisionType,'double')
+            numBytesToAdd = numValuesToAdd*8;
+            numBytesOfData = numValuesOfData*8;
         end
-        disp(' ');
-        disp('You have chosen to zeropad the NSx file that contains a large timestamp gap.');
-        disp('For more information please refer to our <a href = "https://support.blackrockmicro.com/portal/en/kb/articles/nozeropad-in-opennsx">knowledge base article</a> on this subject.');
-        disp('https://support.blackrockmicro.com/portal/en/kb/articles/nozeropad-in-opennsx');
-        response = input('This could take a while. Do you wish to continue? ', 's');
-        if strcmpi(response, 'n')
-            return;
+        
+        % check whether to show the warning
+        flagShowZeroPadWarning = 1;
+        if flagFoundSettingsManager
+            flagShowZeroPadWarning = NPMKSettings.ShowZeroPadWarning;
         end
-        response = input('Do you want NPMK to continue to ask you about this every time? ', 's');
-        if strcmpi(response, 'n')
-            NPMKSettings.ShowZeroPadWarning = 0;
+        
+        % generate warning and ask to continue
+        if NSx.MetaTags.Timestamp(1) > 30000 && flagShowZeroPadWarning
+            warning('Zero padding would add %d bytes to data which already require %d bytes in memory', numBytesToAdd, numBytesOfData);
+            response = input('Do you wish to continue? (y/N) ', 's');
+            if ~strcmpi(response, 'y')
+                warning('Turned off zero padding by user request');
+                flagZeroPad = 0;
+            end
+        end
+        
+        % check on continuing to show this warning
+        if flagFoundSettingsManager
+            response = input('Do you want NPMK to continue to ask you about this every time? (Y/n) ', 's');
+            if ~strcmpi(response, 'n')
+                NPMKSettings.ShowZeroPadWarning = 1;
+            else
+                NPMKSettings.ShowZeroPadWarning = 0;
+            end
             settingsManager(NPMKSettings);
         end
     end
-end
-
-% Adding logic for Central v7.6 clock drift - DK 20230303
-if ~NSx.RawData.PausedFile && StartPacket == 1 && zeropad && ~isPTP
     
-    cellIDX = 1; % only do this for the first cell segment and not modify the subsequent segments
-    if ReadData
-        NSx.Data{cellIDX} = [zeros(NSx.MetaTags.ChannelCount, floor(NSx.MetaTags.Timestamp(cellIDX) / skipFactor), precisionType) NSx.Data{cellIDX}];
-    end
-    NSx.MetaTags.DataPoints(cellIDX) = size(NSx.Data{cellIDX},2);
-    NSx.MetaTags.Timestamp(cellIDX) = 0;
-
-    if multinsp
-        NSx.Data{cellIDX} = [zeros(NSx.MetaTags.ChannelCount, syncShift, precisionType) NSx.Data{cellIDX}];
-        NSx.MetaTags.DataPoints = size(NSx.Data{cellIDX},2);
+    % perform zero padding
+    % (flagZeroPad may be set to false above, so need to re-evaluate)
+    if requestedStartDataPoint == 1 && flagZeroPad
+        
+        % only for the first data segment
+        currSegment = 1;
+        if flagReadData
+            NSx.Data{currSegment} = [zeros(NSx.MetaTags.ChannelCount, numZerosToAdd, requestedPrecisionType) NSx.Data{currSegment}];
+        end
+        
+        % update metadata
+        NSx.MetaTags.DataPoints(currSegment) = size(NSx.Data{currSegment},2);
+        NSx.MetaTags.Timestamp(currSegment) = 0;
+        NSx.MetaTags.DataDurationSec(currSegment) = size(NSx.Data{currSegment},2)/NSx.MetaTags.SamplingFreq;
     end
 end
 
 
 %% Adjusting for the data's unit.
-if strcmpi(waveformUnits, 'uV')
+if flagConvertToUv
     NSx.Data = cellfun(@(x) bsxfun(@rdivide, x, 1./(double([NSx.ElectrodesInfo.MaxAnalogValue])./double([NSx.ElectrodesInfo.MaxDigiValue]))'),NSx.Data ,'UniformOutput',false);
 else
-    NPMKSettings = settingsManager;
-    if NPMKSettings.ShowuVWarning == 1
-        disp(' ');
-        disp('The data is in unit of 1/4 µV. This means that 100 in the NSx file equals to 25 µV. All values must be divided by 4.');
-        disp('To read the data in unit of µV, use openNSx(''uv''). For more information type: help openNSx');
-
-        response = input('Do you want NPMK to continue to ask you about this every time? ', 's');
-        if strcmpi(response, 'n')
+    flagShowuVWarning = 1;
+    if flagFoundSettingsManager
+        flagShowuVWarning = NPMKSettings.ShowuVWarning;
+    end
+    if flagShowuVWarning
+        warning('Note that data are in units of 1/4 µV; see ''uv'' argument.');
+    end
+    if flagShowuVWarning && flagFoundSettingsManager
+        response = input('Do you want NPMK to continue to warn you about this every time? (Y/n) ', 's');
+        if ~strcmpi(response, 'n')
+            NPMKSettings.ShowuVWarning = 1;
+        else
             NPMKSettings.ShowuVWarning = 0;
-            settingsManager(NPMKSettings);
         end
+        settingsManager(NPMKSettings);
     end
 end
 
 %% Adding implementation of samplealign for cases where it is needed
-if isPTP && align
+if flagOneSamplePerPacket && flagAlign
     for ii = 1:length(NSx.Data)
-        file_datalength = file.MetaTags.DataPoints(ii);
-        file_duration = file.MetaTags.DataDurationTimeRes(ii);
+        fileDataLength = file.MetaTags.DataPoints(ii);
+        fileDuration = file.MetaTags.DataDurationTimeRes(ii);
 
         % Calculate the ratio between time gaps and expected time gap
         % based on the sampling rate of the recording. A recording
         % where the claimed sampling rate and true sampling rate based
         % off PTP time are identical will have a ratio of 1;
-        samplingrates = file_duration/file_datalength/NSx.MetaTags.TimeRes*NSx.MetaTags.SamplingFreq;
+        samplingRates = fileDuration/fileDataLength/NSx.MetaTags.TimeRes*NSx.MetaTags.SamplingFreq;
 
         % Calculate the number of samples that should be added or
         % removed
-        addedsamples = round((samplingrates-1)*file_datalength);
+        addedSamples = round((samplingRates-1)*fileDataLength);
 
         % Establish where the points should be added or removed
-        gapind = round(file_datalength/(abs(addedsamples)+1));
+        gapIndex = round(fileDataLength/(abs(addedSamples)+1));
 
         % calculate the portion of samples added/subtracted to the
         % requested data, which may be shorter than the full file
         % use floor because we need addedsamples+1 sections to avoid
         % adding/subtracting samples at the beginning or end of the data.
-        addedsamples_fraction = addedsamples * NSx.MetaTags.DataPoints(ii)/file_datalength;
-        addedsamples = floor(addedsamples_fraction);
-        if addedsamples == addedsamples_fraction && NSx.MetaTags.DataPoints(ii)<file_datalength
-            addedsamples = addedsamples - 1;
+        addedSamplesFraction = addedSamples * NSx.MetaTags.DataPoints(ii)/fileDataLength;
+        addedSamples = floor(addedSamplesFraction);
+        if addedSamples == addedSamplesFraction && NSx.MetaTags.DataPoints(ii)<fileDataLength
+            addedSamples = addedSamples - 1;
         end
         
         % split into cell arrays
-        dim1_sz = size(NSx.Data{ii},1);
-        if gapind >= size(NSx.Data{ii},2)
-            if abs(addedsamples)>1
+        dim1Size = size(NSx.Data{ii},1);
+        if gapIndex >= size(NSx.Data{ii},2)
+            if abs(addedSamples)>1
                 warning('Expected to add or remove only one sample')
             end
-            dim2_sz = [round(size(NSx.Data{ii},2)/2) size(NSx.Data{ii},2)-round(size(NSx.Data{ii},2)/2)];
+            dim2Size = [round(size(NSx.Data{ii},2)/2) size(NSx.Data{ii},2)-round(size(NSx.Data{ii},2)/2)];
         else
-            dim2_sz = [repmat(gapind,1,abs(addedsamples)) size(NSx.Data{ii},2) - sum(repmat(gapind,1,abs(addedsamples)))];
+            dim2Size = [repmat(gapIndex,1,abs(addedSamples)) size(NSx.Data{ii},2) - sum(repmat(gapIndex,1,abs(addedSamples)))];
         end
-        NSx.Data{ii} = mat2cell(NSx.Data{ii},dim1_sz,dim2_sz);
+        NSx.Data{ii} = mat2cell(NSx.Data{ii},dim1Size,dim2Size);
 
         % add or subtract
-        if abs(addedsamples)==1
-            sample_string = sprintf('%d sample',abs(addedsamples));
-            where_string = 'at midpoint';
+        if abs(addedSamples)==1
+            sampleString = sprintf('%d sample',abs(addedSamples));
+            whereString = 'at midpoint';
         else
-            sample_string = sprintf('%d samples',abs(addedsamples));
-            where_string = 'evenly spaced';
+            sampleString = sprintf('%d samples',abs(addedSamples));
+            whereString = 'evenly spaced';
         end
         if length(NSx.Data)==1
-            segment_string = 'the data';
+            segmentString = 'the data';
         else
-            segment_string = sprintf('data segment %d/%d',ii,length(NSx.Data));
+            segmentString = sprintf('data segment %d/%d',ii,length(NSx.Data));
         end
-        if addedsamples>0
+        if addedSamples>0
             NSx.Data{ii}(1:end-1) = cellfun(@(x) [x x(:,end)], NSx.Data{ii}(1:end-1), 'UniformOutput',false);
-            warning('Added %s to %s (%s) for clock drift alignment',sample_string,segment_string,where_string)
-        elseif addedsamples<0
+            warning('Added %s to %s (%s) for clock drift alignment',sampleString,segmentString,whereString)
+        elseif addedSamples<0
             NSx.Data{ii}(1:end-1) = cellfun(@(x) x(:,1:end-1), NSx.Data{ii}(1:end-1), 'UniformOutput',false);
-            warning('Removed %s from %s (%s) for clock drift alignment',sample_string,segment_string,where_string)
+            warning('Removed %s from %s (%s) for clock drift alignment',sampleString,segmentString,whereString)
         end
 
         % combine to form the full data again
@@ -1277,34 +1286,32 @@ if iscell(NSx.Data) && length(NSx.Data)==1
 end
 
 %% Displaying a report of basic file information and the Basic Header.
-if Report
+if flagReport
     disp( '*** FILE INFO **************************');
     disp(['File Path          = '  NSx.MetaTags.FilePath]);
     disp(['File Name          = '  NSx.MetaTags.Filename]);
     disp(['File Extension     = '  NSx.MetaTags.FileExt]);
 	disp(['File Version       = '  NSx.MetaTags.FileSpec]);
     disp(['Duration (seconds) = '  num2str(NSx.MetaTags.DataDurationSec)]);
-    disp(['Total Data Points  = '  num2str(NSx.MetaTags.DataPoints)]);
+    disp(['Total Datapoints   = '  num2str(NSx.MetaTags.DataPoints)]);
     disp(' ');
     disp( '*** BASIC HEADER ***********************');
     disp(['File Type ID       = '  NSx.MetaTags.FileTypeID]);
     disp(['Sample Frequency   = '  num2str(double(NSx.MetaTags.SamplingFreq))]);
     disp(['Electrodes Read    = '  num2str(double(NSx.MetaTags.ChannelCount))]);
-    disp(['Data Point Read    = '  num2str(size(NSx.Data,2))]);
+    disp(['Datapoints Read    = '  num2str(size(NSx.Data,2))]);
 end
 
-%% If user does not specify an output argument it will automatically create
-%  a structure.
-outputName = ['NS' fext(4)];
+%% Create output variable in user workspace even if no output argument
+outputName = ['NS' requestedFileExtension(4)];
 if (nargout == 0)
     assignin('caller', outputName, NSx);
 else
     varargout{1} = NSx;
 end
 
-if Report
+if flagReport
 	disp(['The load time for ' outputName ' file was ' num2str(toc, '%0.1f') ' seconds.']);
 end
-fclose(FID);
 
 end
