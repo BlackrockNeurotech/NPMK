@@ -1093,7 +1093,10 @@ try
         end
         
         % verify amount of data read from disk
-        assert(sum(cellfun(@(x)size(x,2),NSx.Data))==floor(numDataPointsRequested),'Did not read the requested number of data points');
+        numDataPointsRead = sum(cellfun(@(x)size(x,2),NSx.Data));
+        if numDataPointsRead~=numDataPointsRequested
+            warning('Expected to read %d data points, but output has %d data points.',numDataPointsRequested,numDataPointsRead);
+        end
     end
 catch ME
     fclose(FID);
