@@ -90,7 +90,8 @@ function varargout = openNSx(varargin)
 %                 'double' with a warning.
 %
 %   'precision',P
-%   'p:P':        Specify the precision P for data read from the NSx file.
+%   'p:P':
+%   P             Specify the precision P for data read from the NSx file.
 %                 Valid options are 'double' (64-bit floating point) or
 %                 'int16' (or, equivalently, 'short'; 16-bit signed
 %                 integer). Data are stored in the file as int16 values. 
@@ -168,7 +169,7 @@ function varargout = openNSx(varargin)
 %                 in sample timing, setting this value too large may lead
 %                 to spurious detections (i.e., the sum of jitter could be
 %                 greater than the detection threshold).
-%                 DEFAULT: 1,000 packets per frame.
+%                 DEFAULT: 100,000 packets per frame.
 %
 %   OUTPUT:       The NSx structure.
 %
@@ -348,8 +349,13 @@ function varargout = openNSx(varargin)
 %
 % 7.4.5.0: December 6, 2023
 %   - Better support for reading files recorded from Gemini systems
-%   - Restores default precision to int16 as documented
-%   - General code maintenance
+%   - Improved speed and memory usage for Gemini system recordings
+%   - Change messages about errors to actual errors
+%   - NPMK SettingsManager, getFile, and NPMKverChecker made optional
+%   - Force 'double' precision (with warning) if conversion to uV requested
+%   - Repair skipfactor implementation
+%   - Clean up documentation
+%   - Clean up code
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Define the NSx data structure and sub-branches.
@@ -362,13 +368,16 @@ NSx.MetaTags = struct('FileTypeID',[],'SamplingLabel',[],'ChannelCount',[],'Samp
 NSx.MetaTags.openNSxver = '7.4.5.0';
 
 %% Check for the latest version of NPMK
-NPMKverChecker
+if exist('NPMKverChecker','file')==2
+    NPMKverChecker
+end
 
 %% Define constants and defaults
 extHeaderEntrySize = 66;
 NSx.RawData.PausedFile = 0;
 syncShift = 0;
 flagFoundSettingsManager = exist('settingsManager','file')==2;
+flagFoundGetFile = exist('getFile','file')==2;
 NPMKSettings = [];
 if flagFoundSettingsManager
     NPMKSettings = settingsManager;
@@ -387,7 +396,7 @@ flagOneSamplePerPacket = 0;
 requestedTimeScale = 'sample';
 requestedPrecisionType = 'int16';
 requestedSkipFactor = 1;
-requestedPacketsPerFrame = 1000;
+requestedPacketsPerFrame = 100000;
 requestedMaxTickMultiple = 2;
 requestedChanRow = [];
 requestedFileName = '';
@@ -396,38 +405,38 @@ requestedFileName = '';
 next = '';
 for i=1:length(varargin)
     inputArgument = varargin{i};
-    if strcmpi(inputArgument, 'ver')
+    if ischar(inputArgument) && strcmpi(inputArgument, 'ver')
         varargout{1} = NSx.MetaTags.openNSxver;
         return;
-    elseif strcmpi(inputArgument, 'channels')
+    elseif ischar(inputArgument) && strcmpi(inputArgument, 'channels')
         next = 'channels';
-    elseif strcmpi(inputArgument, 'skipfactor')
+    elseif ischar(inputArgument) && strcmpi(inputArgument, 'skipfactor')
         next = 'skipfactor';
-    elseif strcmpi(inputArgument, 'electrodes')
+    elseif ischar(inputArgument) && strcmpi(inputArgument, 'electrodes')
         next = 'electrodes';
-    elseif strcmpi(inputArgument, 'duration')
+    elseif ischar(inputArgument) && strcmpi(inputArgument, 'duration')
         next = 'duration';
-    elseif strcmpi(inputArgument, 'precision')
+    elseif ischar(inputArgument) && strcmpi(inputArgument, 'precision')
         next = 'precision';
-    elseif strcmpi(inputArgument, 'packets_per_frame')
+    elseif ischar(inputArgument) && strcmpi(inputArgument, 'packets_per_frame')
         next = 'packets_per_frame';
-    elseif strcmpi(inputArgument, 'max_tick_multiple')
+    elseif ischar(inputArgument) && strcmpi(inputArgument, 'max_tick_multiple')
         next = 'max_tick_multiple';
-    elseif strcmpi(inputArgument, 'report')
+    elseif ischar(inputArgument) && strcmpi(inputArgument, 'report')
         flagReport = 1;
-    elseif strcmpi(inputArgument, 'noread')
+    elseif ischar(inputArgument) && strcmpi(inputArgument, 'noread')
         flagReadData = 0;
-    elseif strcmpi(inputArgument, 'nomultinsp')
+    elseif ischar(inputArgument) && strcmpi(inputArgument, 'nomultinsp')
         flagMultiNSP = 0;
-    elseif strcmpi(inputArgument, 'zeropad')
+    elseif ischar(inputArgument) && strcmpi(inputArgument, 'zeropad')
         flagZeroPad = 1;
-    elseif strcmpi(inputArgument, 'uV')
+    elseif ischar(inputArgument) && strcmpi(inputArgument, 'uV')
         flagConvertToUv = 1;
-    elseif strcmpi(inputArgument, 'noalign')
+    elseif ischar(inputArgument) && strcmpi(inputArgument, 'noalign')
         flagAlign = false;
-    elseif strcmpi(inputArgument, 'read')
+    elseif ischar(inputArgument) && strcmpi(inputArgument, 'read')
         flagReadData = 1;
-    elseif (strncmp(inputArgument, 't:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'duration')
+    elseif ischar(inputArgument) && ((strncmp(inputArgument, 't:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'duration'))
         if strncmp(inputArgument, 't:', 2)
             inputArgument(1:2) = [];
             inputArgument = str2num(inputArgument); %#ok<ST2NM>
@@ -438,7 +447,7 @@ for i=1:length(varargin)
         requestedStartValue = inputArgument(1);
         requestedEndValue = inputArgument(end);
         next = '';
-    elseif (strncmp(inputArgument, 'e:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'electrodes')
+    elseif ischar(inputArgument) && ((strncmp(inputArgument, 'e:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'electrodes'))
         assert(exist('KTUEAMapFile','file')==2,'To read data by ''electrodes'' the function KTUEAMapFile needs to be in path.');
         mapFile = KTUEAMapFile;
         requestedElectrodes = str2num(inputArgument(3:end)); %#ok<ST2NM>
@@ -451,7 +460,7 @@ for i=1:length(varargin)
         end
         flagElectrodeReading = 1;
         next = '';
-    elseif (strncmp(inputArgument, 's:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'skipFactor')
+    elseif ischar(inputArgument) && ((strncmp(inputArgument, 's:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'skipFactor'))
         if strncmp(inputArgument, 's:', 2)
             requestedSkipFactor = str2num(inputArgument(3:end)); %#ok<ST2NM>
         elseif ischar(inputArgument)
@@ -460,7 +469,7 @@ for i=1:length(varargin)
             requestedSkipFactor = inputArgument;
         end
         next = '';
-    elseif (strncmp(inputArgument, 'c:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'channels')
+    elseif ischar(inputArgument) && ((strncmp(inputArgument, 'c:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'channels'))
         if strncmp(inputArgument, 'c:', 2)
             requestedChanRow = str2num(inputArgument(3:end)); %#ok<ST2NM>
         elseif ischar(inputArgument)
@@ -469,11 +478,11 @@ for i=1:length(varargin)
             requestedChanRow = inputArgument;
         end
         next = '';
-    elseif (strncmp(varargin{i}, 'p:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'precision')
-        if strncmp(varargin{i}, 'p:', 2)
-            precisionTypeRaw = varargin{i}(3:end);
+    elseif ischar(inputArgument) && (any(strcmpi(inputArgument,{'double','int16','short'})) || (strncmp(varargin{i}, 'p:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'precision'))
+        if strncmpi(inputArgument, 'p:', 2)
+            precisionTypeRaw = inputArgument(3:end);
         else
-            precisionTypeRaw = varargin{i};
+            precisionTypeRaw = inputArgument;
         end
         switch precisionTypeRaw
             case {'int16','short'}
@@ -496,21 +505,22 @@ for i=1:length(varargin)
         else
             requestedMaxTickMultiple = inputArgument;
         end
-    elseif strfind(' hour hours min mins minute minutes sec secs second seconds sample samples ', [' ' inputArgument ' ']) ~= 0
+    elseif ischar(inputArgument) && ...
+            (strncmpi(inputArgument,'hours',4) || strncmpi(inputArgument,'hrs',2) || ...
+            strncmpi(inputArgument,'minutes',3) || strncmpi(inputArgument,'mins',3) || ...
+            strncmpi(inputArgument,'seconds',3) || strncmpi(inputArgument,'secs',3) || ...
+            strncmpi(inputArgument,'samples',4))
         requestedTimeScale = inputArgument;
+    elseif ischar(inputArgument) && length(inputArgument)>3 && ...
+            (strcmpi(inputArgument(3),'\') || ...
+            strcmpi(inputArgument(1),'/') || ...
+            strcmpi(inputArgument(2),'/') || ...
+            strcmpi(inputArgument(1:2), '\\') || ...
+            strcmpi(inputArgument(end-3), '.'))
+        requestedFileName = inputArgument;
+        assert(exist(requestedFileName, 'file')==2,'The file does not exist.');
     else
-        temp = char(inputArgument);
-        if length(temp)>3 && ...
-                (strcmpi(temp(3),'\') || ...
-                strcmpi(temp(1),'/') || ...
-                strcmpi(temp(2),'/') || ...
-                strcmpi(temp(1:2), '\\') || ...
-                strcmpi(temp(end-3), '.'))
-            requestedFileName = inputArgument;
-            assert(exist(requestedFileName, 'file')==2,'The file does not exist.');
-        else
-            error(['Invalid argument ''' inputArgument '''.']);
-        end
+        error(['Invalid argument ''' inputArgument '''.']);
     end
 end
 clear next;
@@ -532,8 +542,14 @@ end
 %% Identify data file name, path, and extension
 %  for later use, and validate the entry.
 if isempty(requestedFileName)
-    [requestedFileName, requestedFilePath] = getFile('*.ns1;*.ns2;*.ns3;*.ns4;*.ns5;*.ns6;*.ns6m', 'Choose an NSx file...');
-    assert(requestedFileName~=0,'No file selected');
+    title = 'Choose an NSx file...';
+    filterSpec = '*.ns1;*.ns2;*.ns3;*.ns4;*.ns5;*.ns6;*.ns6m';
+    if flagFoundGetFile
+        [requestedFileName, requestedFilePath] = getFile(filterSpec, title);
+    else
+        [requestedFileName, requestedFilePath] = uigetfile(filterSpec, title);
+    end
+    assert(ischar(requestedFileName),'No file selected');
     [~, ~, requestedFileExtension] = fileparts(requestedFileName);
 else
     if isempty(fileparts(requestedFileName))
@@ -592,9 +608,8 @@ try
             t                          = dir(fileFullPath);
             NSx.MetaTags.DateTime      = t.date;
         catch ME2
-            warning('Could not compute date from file.')
+            warning('openNSx:NEURALSG_datetime','Could not compute date from file: %s',ME2.message)
             NSx.MetaTags.DateTime  = '';
-            disp(ME2)
         end
         timestampSize             = 4;
     elseif or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP'))
@@ -926,7 +941,7 @@ try
         switch requestedTimeScale
             case {'sec', 'secs', 'second', 'seconds'}
                 
-                % conver seconds to samples
+                % convert seconds to samples
                 requestedStartDataPoint = requestedStartValue * NSx.MetaTags.SamplingFreq + 1;
                 requestedEndDataPoint = requestedEndValue * NSx.MetaTags.SamplingFreq;
             case {'min', 'mins', 'minute', 'minutes'}
@@ -962,14 +977,12 @@ try
         warning('End data point (%d) must be less than or equal to the total number of data points (%d).',requestedEndDataPoint,sum(NSx.MetaTags.DataPoints));
         response = input('Do you wish to update the last requested data point to last one available in the file and continue? (y/N) ', 's');
         if strcmpi(response,'y')
+            warning('Changed end data point from %d to %d',requestedEndDataPoint,sum(NSx.MetaTags.DataPoints));
             requestedEndDataPoint = sum(NSx.MetaTags.DataPoints);
         else
             error('Invalid last requested data point');
         end
     end
-    
-    % calculate total number of data points requested
-    numDataPointsRequested = requestedEndDataPoint - requestedStartDataPoint + 1;
     
     %% Identify data segments containing requested packets
     requestedSegments = nan(1,2); % first and last requested segments
@@ -1027,6 +1040,9 @@ try
         segmentDataPoints = NSx.MetaTags.DataPoints;
     end
     
+    % calculate total number of data points requested
+    numDataPointsRequested = sum(floor(segmentDataPoints/requestedSkipFactor));
+    
     
     %% Read data
     file.MetaTags.DataPoints = NSx.MetaTags.DataPoints;
@@ -1077,7 +1093,7 @@ try
         end
         
         % verify amount of data read from disk
-        assert(sum(cellfun(@(x)size(x,2),NSx.Data))==floor(numDataPointsRequested/requestedSkipFactor),'Did not read the requested number of data points');
+        assert(sum(cellfun(@(x)size(x,2),NSx.Data))==floor(numDataPointsRequested),'Did not read the requested number of data points');
     end
 catch ME
     fclose(FID);
@@ -1116,6 +1132,9 @@ NSx.MetaTags.ChannelID(channelIDToDelete) = [];
 
 %% Zero-pad data if requested
 if flagZeroPad
+    
+    % only operate on first data segment
+    currSegment = 1;
     
     % compute how many zeros and total number of values to add
     numZerosToAdd = floor(NSx.MetaTags.Timestamp(currSegment) / requestedSkipFactor);
@@ -1170,7 +1189,6 @@ if flagZeroPad
     if requestedStartDataPoint == 1 && flagZeroPad
         
         % only for the first data segment
-        currSegment = 1;
         if flagReadData
             NSx.Data{currSegment} = [zeros(NSx.MetaTags.ChannelCount, numZerosToAdd, requestedPrecisionType) NSx.Data{currSegment}];
         end
@@ -1183,7 +1201,7 @@ if flagZeroPad
 end
 
 
-%% Adjusting for the data's unit.
+%% Adjust for the data's unit.
 if flagConvertToUv
     NSx.Data = cellfun(@(x) bsxfun(@rdivide, x, 1./(double([NSx.ElectrodesInfo.MaxAnalogValue])./double([NSx.ElectrodesInfo.MaxDigiValue]))'),NSx.Data ,'UniformOutput',false);
 else
@@ -1205,7 +1223,7 @@ else
     end
 end
 
-%% Adding implementation of samplealign for cases where it is needed
+%% Add implementation of samplealign for cases where it is needed
 if flagOneSamplePerPacket && flagAlign
     for ii = 1:length(NSx.Data)
         fileDataLength = file.MetaTags.DataPoints(ii);
@@ -1228,10 +1246,9 @@ if flagOneSamplePerPacket && flagAlign
         % requested data, which may be shorter than the full file
         % use floor because we need addedsamples+1 sections to avoid
         % adding/subtracting samples at the beginning or end of the data.
-        addedSamplesFraction = addedSamples * NSx.MetaTags.DataPoints(ii)/fileDataLength;
-        addedSamples = floor(addedSamplesFraction);
-        if addedSamples == addedSamplesFraction && NSx.MetaTags.DataPoints(ii)<fileDataLength
-            addedSamples = addedSamples - 1;
+        addedSamples = floor(addedSamples * NSx.MetaTags.DataPoints(ii)/fileDataLength);
+        if addedSamples == 0
+            continue;
         end
         
         % split into cell arrays
@@ -1276,7 +1293,7 @@ if flagOneSamplePerPacket && flagAlign
     end
 end
 
-%% Converting the data points in sample to seconds
+%% Convert data points in sample to seconds
 NSx.MetaTags.DataPointsSec = double(NSx.MetaTags.DataPoints)/NSx.MetaTags.SamplingFreq;
 
 %% Remove the cell if there is only one recorded segment present
@@ -1285,7 +1302,7 @@ if iscell(NSx.Data) && length(NSx.Data)==1
     NSx.Data = NSx.Data{1};
 end
 
-%% Displaying a report of basic file information and the Basic Header.
+%% Display a report of basic file information and the Basic Header.
 if flagReport
     disp( '*** FILE INFO **************************');
     disp(['File Path          = '  NSx.MetaTags.FilePath]);
