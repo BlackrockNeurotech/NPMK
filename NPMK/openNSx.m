@@ -1,7 +1,7 @@
 function varargout = openNSx(varargin)
 
 % openNSx
-% 
+%
 % Opens and reads an NSx file then returns all file information in a NSx
 % structure. Works with File Spec 2.1, 2.2, 2.3, and 3.0.
 % 
@@ -65,11 +65,11 @@ function varargout = openNSx(varargin)
 %                 length of data the program will exit with an errorNS
 %                 message. If the end time is greater than the length of
 %                 data the end packet will be selected for end of data. The
-%                 user can specify the start and end values by comma 
+%                 user can specify the start and end values by comma
 %                 (e.g. [20,50]) or by a colon (e.g. [20:50]). To use this
 %                 argument the user must specify the [electrodes] or the
 %                 interval will be used for [electrodes] automatically.
-%                 This field needs to be preceded by the prefix 't:'. 
+%                 This field needs to be preceded by the prefix 't:'.
 %                 Note that if 'mode' is 'sample' the start duration cannot
 %                 be less than 1. The duration is inclusive.
 %                 See example for more details.
@@ -173,7 +173,7 @@ function varargout = openNSx(varargin)
 %
 %   OUTPUT:       The NSx structure.
 %
-%   Example 1: 
+%   Example 1:
 %   openNSx('report','read','c:\data\sample.ns5', 'e:15:30', 't:3:10','min', 'p:short', 's:5');
 %
 %   or equivalently
@@ -302,7 +302,7 @@ function varargout = openNSx(varargin)
 %   - Added support for 64-bit timestamps in NEV and NSx.
 %
 % 7.1.0.0: April 14, 2020
-%   - Added option to load the data without zero padding to compensate for 
+%   - Added option to load the data without zero padding to compensate for
 %     a non-zero start time. (David Kluger)
 %   - Bug fixes and documentation updates (David Kluger)
 %
@@ -311,16 +311,16 @@ function varargout = openNSx(varargin)
 %
 % 7.3.0.0: September 11, 2020
 %   - Fixed a bug related to fread and MATLAB 2020a.
-%   - Gives a warning about FileSpec 3.0 and gives the user options for how 
+%   - Gives a warning about FileSpec 3.0 and gives the user options for how
 %     to proceed.
 %   - Added a warning about the data unit and that by default it in the
 %     unit of 250 nV or 1/4 �V.
 %   - If the units are in "raw", ths correct information is now written to
-%     the electrodes header: 250 nV (raw). 
+%     the electrodes header: 250 nV (raw).
 %
 % 7.3.1.0: October 2, 2020
-%   - If the units are in �V (openNSx('uv'), ths correct information is now 
-%     written to the electrodes header: 1000 nV (raw). 
+%   - If the units are in �V (openNSx('uv'), ths correct information is now
+%     written to the electrodes header: 1000 nV (raw).
 %
 % 7.3.2.0: October 23, 2020
 %   - Fixed a typo.
@@ -347,7 +347,10 @@ function varargout = openNSx(varargin)
 %   - Accounts for many segments in files for clock drift correction
 %   - Changed 'zeropad' default behavior to be 'no'
 %
-% 7.4.5.0: December 6, 2023
+% 7.4.5.0: October 5, 2023
+%   - Bank numbers on new files are not alpha which causes problems on save
+%
+% 7.4.6.0: December 6, 2023
 %   - Better support for reading files recorded from Gemini systems
 %   - Improved speed and memory usage for Gemini system recordings
 %   - Change messages about errors to actual errors
@@ -365,7 +368,7 @@ NSx.MetaTags = struct('FileTypeID',[],'SamplingLabel',[],'ChannelCount',[],'Samp
                       'Timestamp', [], 'DataPoints', [], 'DataDurationSec', [], 'openNSxver', [], 'Filename', [], 'FilePath', [], ...
                       'FileExt', []);
 
-NSx.MetaTags.openNSxver = '7.4.5.0';
+NSx.MetaTags.openNSxver = '7.4.6.0';
 
 %% Check for the latest version of NPMK
 if exist('NPMKverChecker','file')==2
@@ -543,7 +546,7 @@ end
 %  for later use, and validate the entry.
 if isempty(requestedFileName)
     title = 'Choose an NSx file...';
-    filterSpec = '*.ns1;*.ns2;*.ns3;*.ns4;*.ns5;*.ns6;*.ns6m';
+    filterSpec = '*.ns*';
     if flagFoundGetFile
         [requestedFileName, requestedFilePath] = getFile(filterSpec, title);
     else
@@ -583,7 +586,6 @@ end
 tic;
 
 %% Process file
-
 FID = fopen([requestedFilePath requestedFileName], 'r', 'ieee-le');
 try
     
@@ -644,7 +646,7 @@ try
             
             NSx.ElectrodesInfo(headerIDX).ElectrodeID = typecast(extendedHeaderBytes((3:4)+byteOffset), 'uint16');
             NSx.ElectrodesInfo(headerIDX).Label = char(extendedHeaderBytes((5:20)+byteOffset))';
-            NSx.ElectrodesInfo(headerIDX).ConnectorBank = char(extendedHeaderBytes(21+byteOffset) + ('A' - 1));
+            NSx.ElectrodesInfo(headerIDX).ConnectorBank = extendedHeaderBytes(21+byteOffset);
             NSx.ElectrodesInfo(headerIDX).ConnectorPin   = extendedHeaderBytes(22+byteOffset);
             NSx.ElectrodesInfo(headerIDX).MinDigiValue   = typecast(extendedHeaderBytes((23:24)+byteOffset), 'int16');
             NSx.ElectrodesInfo(headerIDX).MaxDigiValue   = typecast(extendedHeaderBytes((25:26)+byteOffset), 'int16');
@@ -903,7 +905,6 @@ try
         NSx.RawData.PausedFile = 1;
     end
     
-    
     %% Save data headers for saveNSx
     dataHeaderBytes = cell(1,length(f.BOData));
     for ss = 1:length(f.BOData)
@@ -912,7 +913,6 @@ try
         dataHeaderBytes{ss} = fread(FID, headerByteSize, '*uint8');
     end
     NSx.RawData.DataHeader = cat(1,dataHeaderBytes{:});
-    
     
     %% Remove extra ElectrodesInfo for channels not read
     if or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP'))
@@ -1043,7 +1043,6 @@ try
     % calculate total number of data points requested
     numDataPointsRequested = sum(floor(segmentDataPoints/requestedSkipFactor));
     
-    
     %% Read data
     file.MetaTags.DataPoints = NSx.MetaTags.DataPoints;
     file.MetaTags.DataDurationSec = NSx.MetaTags.DataDurationSec;
@@ -1119,7 +1118,7 @@ end
 % capture this - DK 20230303
 % channelThatWereRead = min(userRequestedChanRow):max(userRequestedChanRow);
 % if ~isempty(setdiff(channelThatWereRead,userRequestedChanRow))
-% 	deleteChannels = setdiff(channelThatWereRead, userRequestedChanRow) - min(userRequestedChanRow) + 1;
+%        deleteChannels = setdiff(channelThatWereRead, userRequestedChanRow) - min(userRequestedChanRow) + 1;
 %     if NSx.RawData.PausedFile
 %         for segIDX = 1:size(NSx.Data,2)
 %             NSx.Data{segIDX}(deleteChannels,:) = [];
