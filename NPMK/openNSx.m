@@ -1296,22 +1296,21 @@ if flagOneSamplePerPacket && flagAlign
     end
 end
 
-%% Convert data points in sample to seconds
+% Convert data points in sample to seconds
 NSx.MetaTags.DataPointsSec = double(NSx.MetaTags.DataPoints)/NSx.MetaTags.SamplingFreq;
 
-%% Remove the cell if there is only one recorded segment present
-% Adding logic for Central v7.6 clock drift - DK 20230303
+% Remove the cell if there is only one recorded segment present
 if iscell(NSx.Data) && length(NSx.Data)==1
     NSx.Data = NSx.Data{1};
 end
 
-%% Display a report of basic file information and the Basic Header.
+% Display a report of basic file information and the Basic Header.
 if flagReport
     disp( '*** FILE INFO **************************');
     disp(['File Path          = '  NSx.MetaTags.FilePath]);
     disp(['File Name          = '  NSx.MetaTags.Filename]);
     disp(['File Extension     = '  NSx.MetaTags.FileExt]);
-	disp(['File Version       = '  NSx.MetaTags.FileSpec]);
+    disp(['File Version       = '  NSx.MetaTags.FileSpec]);
     disp(['Duration (seconds) = '  num2str(NSx.MetaTags.DataDurationSec)]);
     disp(['Total Datapoints   = '  num2str(NSx.MetaTags.DataPoints)]);
     disp(' ');
@@ -1322,7 +1321,7 @@ if flagReport
     disp(['Datapoints Read    = '  num2str(size(NSx.Data,2))]);
 end
 
-%% Create output variable in user workspace even if no output argument
+% Create output variable in user workspace even if no output argument
 outputName = ['NS' requestedFileExtension(4)];
 if (nargout == 0)
     assignin('caller', outputName, NSx);
@@ -1330,8 +1329,9 @@ else
     varargout{1} = NSx;
 end
 
+% Print the load time
 if flagReport
-	disp(['The load time for ' outputName ' file was ' num2str(toc, '%0.1f') ' seconds.']);
+    disp(['The load time for ' outputName ' file was ' num2str(toc, '%0.1f') ' seconds.']);
 end
 
 end
