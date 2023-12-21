@@ -801,7 +801,7 @@ try
                     tsDiffs = diff(timestamps);
                     vals = find(tsDiffs > minimumPauseLength);
                     for jj=1:length(vals)
-                        numDatapointsLastSegment = numPacketsProcessed - nansum(segmentDatapoints) + vals(jj);
+                        numDatapointsLastSegment = numPacketsProcessed - segmentDatapoints(1:currSegment) + vals(jj);
                         segmentDatapoints(currSegment) = numDatapointsLastSegment;
                         segmentDurations(currSegment) = timestamps(vals(jj)) - segmentTimestamps(currSegment) + 1;
                         segmentTimestamps(currSegment + 1) = timestamps(vals(jj) + 1);
@@ -824,9 +824,9 @@ try
             % compute number of datapoints in the last segment
             % add one to the number of packets processed to account for the
             % last packet of the file not being included in a subsequent frame
-            segmentDatapoints(currSegment) = numPacketsProcessed - nansum(segmentDatapoints);
+            segmentDatapoints(currSegment) = numPacketsProcessed - sum(segmentDatapoints(1:currSegment-1));
             segmentDurations(currSegment) = timestampLast - segmentTimestamps(currSegment) + 1;
-            
+
             % add into NSx structure
             NSx.MetaTags.Timestamp = segmentTimestamps(1:currSegment);
             NSx.MetaTags.DataPoints = segmentDatapoints(1:currSegment);
@@ -1262,7 +1262,7 @@ if flagOneSamplePerPacket && flagAlign
             end
             dim2Size = [round(size(NSx.Data{ii},2)/2) size(NSx.Data{ii},2)-round(size(NSx.Data{ii},2)/2)];
         else
-            dim2Size = [repmat(gapIndex,1,abs(addedSamples)) size(NSx.Data{ii},2) - sum(repmat(gapIndex,1,abs(addedSamples)))];
+            dim2Size = [repmat(gapIndex,1,abs(addedSamples)) size(NSx.Data{ii},2) - gapIndex*abs(addedSamples)];
         end
         NSx.Data{ii} = mat2cell(NSx.Data{ii},dim1Size,dim2Size);
 
