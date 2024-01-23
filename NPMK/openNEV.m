@@ -792,18 +792,24 @@ if strcmpi(Flags.ReadData, 'read')
                     end
                     indicesOfEvent = find(tmp.NodeID == IDX-1);
                     if ~isempty(indicesOfEvent)
-                        NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStamp = tmp.TimeStamp(indicesOfEvent);
-                        NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStampSec = tmp.TimeStampSec(indicesOfEvent);
-                        NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).ParentID =    tmp.ParentID(indicesOfEvent);
-                        NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).NodeCount =   tmp.NodeCount(indicesOfEvent);
-                        NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).MarkerCount = tmp.MarkerCount(indicesOfEvent);
-                        NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).MarkerCoordinates(size(NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStamp,2)).X = [];
-                        NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).MarkerCoordinates(size(NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStamp,2)).X = [];
-                        for xyIDX = 1:size(NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStamp,2)
-                            NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).MarkerCoordinates(xyIDX).X = ...
-                                tmp.rigidBodyPoints(1:2:NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).MarkerCount(xyIDX)*2, indicesOfEvent(xyIDX));
-                            NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).MarkerCoordinates(xyIDX).Y = ...
-                                tmp.rigidBodyPoints(2:2:NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).MarkerCount(xyIDX)*2, indicesOfEvent(xyIDX));
+                        % If the Spike Events checkbox in File Storage is not checked, the packet size is reduced to allow
+                        % only digital events to be recorded thus saving file size. Doing so causes tracking packets to be 
+                        % truncated.  This fix is to allow the file to be opened even if the tracking events are not included 
+                        % A customer had recorded several files in this manner so this is to help them open their files.
+                        if (Trackers.countPacketBytes > 78)
+                            NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStamp = tmp.TimeStamp(indicesOfEvent);
+                            NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStampSec = tmp.TimeStampSec(indicesOfEvent);
+                            NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).ParentID =    tmp.ParentID(indicesOfEvent);
+                            NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).NodeCount =   tmp.NodeCount(indicesOfEvent);
+                            NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).MarkerCount = tmp.MarkerCount(indicesOfEvent);
+                            NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).MarkerCoordinates(size(NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStamp,2)).X = [];
+                            NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).MarkerCoordinates(size(NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStamp,2)).X = [];
+                            for xyIDX = 1:size(NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStamp,2)
+                                NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).MarkerCoordinates(xyIDX).X = ...
+                                    tmp.rigidBodyPoints(1:2:NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).MarkerCount(xyIDX)*2, indicesOfEvent(xyIDX));
+                                NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).MarkerCoordinates(xyIDX).Y = ...
+                                    tmp.rigidBodyPoints(2:2:NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).MarkerCount(xyIDX)*2, indicesOfEvent(xyIDX));
+                            end
                         end
                     end
                 end
