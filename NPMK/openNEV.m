@@ -775,28 +775,24 @@ if strcmpi(Flags.ReadData, 'read')
             tmp.rigidBodyPoints = reshape(typecast(tmp.rigidBodyPoints(:), 'uint16'), size(tmp.rigidBodyPoints, 1)/2, size(tmp.rigidBodyPoints, 2));
 
             if (isfield(NEV, 'ObjTrackInfo'))
-                for IDX = 1:size(NEV.ObjTrackInfo,2)
-                    emptyChar = find(NEV.ObjTrackInfo(IDX).TrackableName == 0, 1);
-                    NEV.ObjTrackInfo(IDX).TrackableName(emptyChar:end) = [];
-                    if ~(~isempty(strfind(NEV.ObjTrackInfo(IDX).TrackableName, '1')) || ...
-                        ~isempty(strfind(NEV.ObjTrackInfo(IDX).TrackableName, '2')) || ...
-                        ~isempty(strfind(NEV.ObjTrackInfo(IDX).TrackableName, '3')) || ...
-                        ~isempty(strfind(NEV.ObjTrackInfo(IDX).TrackableName, '4')))
-                        nameLength = min(length(NEV.ObjTrackInfo(IDX-1).TrackableName(1:end-1)), length(NEV.ObjTrackInfo(IDX).TrackableName(1:end-1)));
-                        if ~strcmpi(NEV.ObjTrackInfo(IDX-1).TrackableName(1:nameLength-1), NEV.ObjTrackInfo(IDX).TrackableName(1:nameLength-1))
-                            objectIndex = 1;
-                        else
-                            objectIndex = objectIndex + 1;
+                try
+                    for IDX = 1:size(NEV.ObjTrackInfo,2)
+                        emptyChar = find(NEV.ObjTrackInfo(IDX).TrackableName == 0, 1);
+                        NEV.ObjTrackInfo(IDX).TrackableName(emptyChar:end) = [];
+                        if ~(~isempty(strfind(NEV.ObjTrackInfo(IDX).TrackableName, '1')) || ...
+                            ~isempty(strfind(NEV.ObjTrackInfo(IDX).TrackableName, '2')) || ...
+                            ~isempty(strfind(NEV.ObjTrackInfo(IDX).TrackableName, '3')) || ...
+                            ~isempty(strfind(NEV.ObjTrackInfo(IDX).TrackableName, '4')))
+                            nameLength = min(length(NEV.ObjTrackInfo(IDX-1).TrackableName(1:end-1)), length(NEV.ObjTrackInfo(IDX).TrackableName(1:end-1)));
+                            if ~strcmpi(NEV.ObjTrackInfo(IDX-1).TrackableName(1:nameLength-1), NEV.ObjTrackInfo(IDX).TrackableName(1:nameLength-1))
+                                objectIndex = 1;
+                            else
+                                objectIndex = objectIndex + 1;
+                            end
+                            NEV.ObjTrackInfo(IDX).TrackableName(emptyChar) = num2str(objectIndex);
                         end
-                        NEV.ObjTrackInfo(IDX).TrackableName(emptyChar) = num2str(objectIndex);
-                    end
-                    indicesOfEvent = find(tmp.NodeID == IDX-1);
-                    if ~isempty(indicesOfEvent)
-                        % If the Spike Events checkbox in File Storage is not checked, the packet size is reduced to allow
-                        % only digital events to be recorded thus saving file size. Doing so causes tracking packets to be 
-                        % truncated.  This fix is to allow the file to be opened even if the tracking events are not included 
-                        % A customer had recorded several files in this manner so this is to help them open their files.
-                        if (Trackers.countPacketBytes > 78)
+                        indicesOfEvent = find(tmp.NodeID == IDX-1);
+                        if ~isempty(indicesOfEvent)
                             NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStamp = tmp.TimeStamp(indicesOfEvent);
                             NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).TimeStampSec = tmp.TimeStampSec(indicesOfEvent);
                             NEV.Data.Tracking.(NEV.ObjTrackInfo(IDX).TrackableName).ParentID =    tmp.ParentID(indicesOfEvent);
@@ -812,6 +808,8 @@ if strcmpi(Flags.ReadData, 'read')
                             end
                         end
                     end
+                catch
+                    disp('Ignoring tracking information because the packet size in the file is too small...');
                 end
             end
             clear trackingPacketIDIndices tmp;
