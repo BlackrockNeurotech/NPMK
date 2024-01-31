@@ -359,6 +359,10 @@ function varargout = openNSx(varargin)
 %   - Repair skipfactor implementation
 %   - Clean up documentation
 %   - Clean up code
+%
+% 7.4.6.1: January 30, 2024
+%   - Bug fix: mishandling of numerical input arguments
+%   - Bug fix: support noncontiguous channel output
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Define the NSx data structure and sub-branches.
@@ -368,7 +372,7 @@ NSx.MetaTags = struct('FileTypeID',[],'SamplingLabel',[],'ChannelCount',[],'Samp
                       'Timestamp', [], 'DataPoints', [], 'DataDurationSec', [], 'openNSxver', [], 'Filename', [], 'FilePath', [], ...
                       'FileExt', []);
 
-NSx.MetaTags.openNSxver = '7.4.6.0';
+NSx.MetaTags.openNSxver = '7.4.6.1';
 
 %% Check for the latest version of NPMK
 if exist('NPMKverChecker','file')==2
@@ -389,7 +393,6 @@ end
 % Default values
 flagReport = 0;
 flagReadData = 1;
-flagElectrodeReading = 0;
 flagModifiedTime = 0;
 flagMultiNSP = 1;
 flagZeroPad = 0;
@@ -401,7 +404,8 @@ requestedPrecisionType = 'int16';
 requestedSkipFactor = 1;
 requestedPacketsPerFrame = 100000;
 requestedMaxTickMultiple = 2;
-requestedChanRow = [];
+requestedChannelIDs = [];
+requestedChannelIndex = [];
 requestedFileName = '';
 
 %% Process input arguments
@@ -439,31 +443,39 @@ for i=1:length(varargin)
         flagAlign = false;
     elseif ischar(inputArgument) && strcmpi(inputArgument, 'read')
         flagReadData = 1;
-    elseif ischar(inputArgument) && ((strncmp(inputArgument, 't:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'duration'))
+    elseif (ischar(inputArgument) && strncmp(inputArgument, 't:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'duration')
         if strncmp(inputArgument, 't:', 2)
             inputArgument(1:2) = [];
             inputArgument = str2num(inputArgument); %#ok<ST2NM>
         elseif ischar(inputArgument)
             inputArgument = str2num(inputArgument); %#ok<ST2NM>
         end
+        assert(isnumeric(inputArgument),'Must provide duration input that can be resolved to a numeric value');
         flagModifiedTime = 1;
         requestedStartValue = inputArgument(1);
         requestedEndValue = inputArgument(end);
         next = '';
-    elseif ischar(inputArgument) && ((strncmp(inputArgument, 'e:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'electrodes'))
+    elseif (ischar(inputArgument) && strncmp(inputArgument, 'e:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'electrodes')
         assert(exist('KTUEAMapFile','file')==2,'To read data by ''electrodes'' the function KTUEAMapFile needs to be in path.');
         mapFile = KTUEAMapFile;
-        requestedElectrodes = str2num(inputArgument(3:end)); %#ok<ST2NM>
+        if strncmp(inputArgument, 'e:', 2)
+            requestedElectrodes = str2num(inputArgument(3:end)); %#ok<ST2NM>
+        elseif ischar(inputArgument)
+            requestedElectrodes = str2num(inputArgument); %#ok<ST2NM>
+        else
+            requestedElectrodes = inputArgument;
+        end
+        assert(isnumeric(inputArgument),'Must provide electrode input that can be resolved to a numeric value');
         if min(requestedElectrodes)<1 || max(requestedElectrodes)>128
             assert(min(requestedElectrodes)>=1 && max(requestedElectrodes)<=128, 'The electrode number cannot be less than 1 or greater than 128.');
         end
-        requestedChannels = nan(1,length(requestedElectrodes));
+        requestedChannelIDs = nan(1,length(requestedElectrodes));
         for chanIDX = 1:length(requestedElectrodes)
-            requestedChannels(chanIDX) = mapFile.Electrode2Channel(requestedElectrodes(chanIDX));
+            requestedChannelIDs(chanIDX) = mapFile.Electrode2Channel(requestedElectrodes(chanIDX));
         end
         flagElectrodeReading = 1;
         next = '';
-    elseif ischar(inputArgument) && ((strncmp(inputArgument, 's:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'skipFactor'))
+    elseif (ischar(inputArgument) && strncmp(inputArgument, 's:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'skipFactor')
         if strncmp(inputArgument, 's:', 2)
             requestedSkipFactor = str2num(inputArgument(3:end)); %#ok<ST2NM>
         elseif ischar(inputArgument)
@@ -471,17 +483,19 @@ for i=1:length(varargin)
         else
             requestedSkipFactor = inputArgument;
         end
+        assert(isnumeric(requestedSkipFactor) && isscalar(requestedSkipFactor) && floor(requestedSkipFactor)==requestedSkipFactor,'Must provide skipfactor input that can be resolved to a scalar integer value')
         next = '';
-    elseif ischar(inputArgument) && ((strncmp(inputArgument, 'c:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'channels'))
+    elseif (ischar(inputArgument) && strncmp(inputArgument, 'c:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'channels')
         if strncmp(inputArgument, 'c:', 2)
-            requestedChanRow = str2num(inputArgument(3:end)); %#ok<ST2NM>
+            requestedChannelIndex = str2num(inputArgument(3:end)); %#ok<ST2NM>
         elseif ischar(inputArgument)
-            requestedChanRow = str2num(inputArgument(3:end)); %#ok<ST2NM>
+            requestedChannelIndex = str2num(inputArgument); %#ok<ST2NM>
         else
-            requestedChanRow = inputArgument;
+            requestedChannelIndex = inputArgument;
         end
+        assert(isnumeric(requestedChannelIndex),'Must provide channel input that can be resolved to a numeric value');
         next = '';
-    elseif ischar(inputArgument) && (any(strcmpi(inputArgument,{'double','int16','short'})) || (strncmp(varargin{i}, 'p:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'precision'))
+    elseif (ischar(inputArgument) && any(strcmpi(inputArgument,{'double','int16','short'})) || (strncmp(varargin{i}, 'p:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/')) || strcmpi(next, 'precision')
         if strncmpi(inputArgument, 'p:', 2)
             precisionTypeRaw = inputArgument(3:end);
         else
@@ -675,7 +689,7 @@ try
         
         % Parse DateTime
         NSx.MetaTags.DateTimeRaw = t.';
-        NSx.MetaTags.DateTime = datestr(datenum(t(1), t(2), t(4), t(5), t(6), t(7)));
+        NSx.MetaTags.DateTime = char(datetime(t(1), t(2), t(4), t(5), t(6), t(7)));
     else
         error('Unsupported file spec %s', NSx.MetaTags.FileSpec);
     end
@@ -698,27 +712,25 @@ try
     %% Save raw headers for saveNSx
     NSx.RawData.Headers = [uint8(NSx.MetaTags.FileTypeID(:)); basicHeaderBytes(:); extendedHeaderBytes(:)];
     
-    %% Determine the number of channels to read
-    if ~flagElectrodeReading
-        if isempty(requestedChanRow)
-            requestedChannels = NSx.MetaTags.ChannelID;
+    %% Verify channel ID and index variables
+    if isempty(requestedChannelIndex)
+        if isempty(requestedChannelIDs)
+            requestedChannelIndex = 1:length(NSx.MetaTags.ChannelID);
         else
-            assert(all(requestedChanRow<=channelCount),'Channel numbers must be less than or equal to the total number of channels in the file (%d)',channelCount);
-            requestedChannels = NSx.MetaTags.ChannelID(requestedChanRow);
-            NSx.MetaTags.ChannelCount = length(requestedChannels);
-        end
-    else
-        NSx.MetaTags.ChannelCount = length(requestedChannels);
-    end
-    
-    if isempty(requestedChanRow)
-        requestedChanRow = nan(1,length(requestedChannels));
-        for idx = 1:length(requestedChannels)
-            assert(ismember(requestedChannels(idx), NSx.MetaTags.ChannelID),'Channel %d does not exist in this file',requestedChannels(idx));
-            requestedChanRow(idx) = find(NSx.MetaTags.ChannelID == requestedChannels(idx),1);
+            requestedChannelIndex = nan(1,length(requestedChannelIDs));
+            for idx = 1:length(requestedChannelIDs)
+                assert(ismember(requestedChannelIDs(idx), NSx.MetaTags.ChannelID),'Channel ID %d does not exist in this file',requestedChannelIDs(idx));
+                requestedChannelIndex(idx) = find(NSx.MetaTags.ChannelID == requestedChannelIDs(idx),1);
+            end
         end
     end
-    numChansToRead = double(length(min(requestedChanRow):max(requestedChanRow)));
+    if isempty(requestedChannelIDs)
+        requestedChannelIDs = NSx.MetaTags.ChannelID(requestedChannelIndex);
+    end
+    assert(all(requestedChannelIndex<=channelCount),'Channel indices must be less than or equal to the total number of channels in the file (%d)',channelCount);
+    assert(all(ismember(requestedChannelIDs,NSx.MetaTags.ChannelID)),'Channel IDs must be present in the set of channel IDs in the file');
+    NSx.MetaTags.ChannelCount = length(requestedChannelIDs);
+    numChannelsToRead = double(length(min(requestedChannelIndex):max(requestedChannelIndex)));
     
     %% Central v7.6.0 needs corrections for PTP clock drift - DK 20230303
     if NSx.MetaTags.TimeRes > 1e5
@@ -803,7 +815,7 @@ try
                     tsDiffs = diff(timestamps);
                     vals = find(tsDiffs > minimumPauseLength);
                     for jj=1:length(vals)
-                        numDatapointsLastSegment = numPacketsProcessed - segmentDatapoints(1:currSegment) + vals(jj);
+                        numDatapointsLastSegment = numPacketsProcessed - sum(segmentDatapoints(~isnan(segmentDatapoints))) + vals(jj);
                         segmentDatapoints(currSegment) = numDatapointsLastSegment;
                         segmentDurations(currSegment) = timestamps(vals(jj)) - segmentTimestamps(currSegment) + 1;
                         segmentTimestamps(currSegment + 1) = timestamps(vals(jj) + 1);
@@ -826,7 +838,7 @@ try
             % compute number of datapoints in the last segment
             % add one to the number of packets processed to account for the
             % last packet of the file not being included in a subsequent frame
-            segmentDatapoints(currSegment) = numPacketsProcessed - sum(segmentDatapoints(1:currSegment-1));
+            segmentDatapoints(currSegment) = numPacketsProcessed - sum(segmentDatapoints(~isnan(segmentDatapoints)));
             segmentDurations(currSegment) = timestampLast - segmentTimestamps(currSegment) + 1;
 
             % add into NSx structure
@@ -913,15 +925,6 @@ try
         dataHeaderBytes{ss} = fread(FID, headerByteSize, '*uint8');
     end
     NSx.RawData.DataHeader = cat(1,dataHeaderBytes{:});
-    
-    %% Remove extra ElectrodesInfo for channels not read
-    if or(strcmpi(NSx.MetaTags.FileTypeID, 'NEURALCD'), strcmpi(NSx.MetaTags.FileTypeID, 'BRSMPGRP'))
-        for headerIDX = length(NSx.ElectrodesInfo):-1:1
-            if ~ismember(headerIDX, requestedChanRow)
-                NSx.ElectrodesInfo(headerIDX) = [];
-            end
-        end
-    end
     
     %% Identify and validate requested first and last data points
     % Note that new files that use precision time protocol (PTP), for which
@@ -1065,32 +1068,32 @@ try
             end
             
             % seek to first requested channel in the current packet
-            fseek(FID, (find(NSx.MetaTags.ChannelID == min(requestedChannels))-1) * 2, 'cof');
+            fseek(FID, (find(NSx.MetaTags.ChannelID == min(requestedChannelIDs))-1) * 2, 'cof');
             
             % set up parameters for reading data
-            precisionString = sprintf('%d*int16=>%s',numChansToRead,requestedPrecisionType);
-            outputDimensions = [numChansToRead floor(segmentDataPoints(currSegment)/requestedSkipFactor)];
+            precisionString = sprintf('%d*int16=>%s',numChannelsToRead,requestedPrecisionType);
+            outputDimensions = [numChannelsToRead floor(segmentDataPoints(currSegment)/requestedSkipFactor)];
             if flagOneSamplePerPacket
-                bytesToSkipNormal = packetSize - 2*numChansToRead; % standard (i.e., skip factor==1)
+                bytesToSkipNormal = packetSize - 2*numChannelsToRead; % standard (i.e., skip factor==1)
                 bytesSkipFactor = packetSize*(requestedSkipFactor - 1); % additional to skip (skip factor > 1)
             else
-                bytesToSkipNormal = 2*(channelCount - numChansToRead);
+                bytesToSkipNormal = 2*(channelCount - numChannelsToRead);
                 bytesSkipFactor = 2*channelCount*(requestedSkipFactor-1);
             end
             bytesToSkip = bytesToSkipNormal + bytesSkipFactor; % total
             
             % read data
             NSx.Data{outputSegment} = fread(FID, outputDimensions, precisionString, bytesToSkip);
-            
-            % define user tags: info specific to data being read
-            NSx.MetaTags.Timestamp = NSx.MetaTags.Timestamp(requestedSegments(1):requestedSegments(2));
-            NSx.MetaTags.Timestamp(1) = NSx.MetaTags.Timestamp(1) + startTimeStampShift;
-            NSx.MetaTags.DataPoints = cellfun(@(x) size(x,2), NSx.Data, 'UniformOutput', true);
-            NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataDurationSec(requestedSegments(1):requestedSegments(2));
-            NSx.MetaTags.DataDurationSec(1) = NSx.MetaTags.DataDurationSec(1) - (segmentStartDataPoint(requestedSegments(1))-1)/NSx.MetaTags.SamplingFreq;
-            NSx.MetaTags.DataDurationSec(end) = NSx.MetaTags.DataPoints(end)/NSx.MetaTags.SamplingFreq;
         end
-        
+
+        % define user tags: info specific to data being read
+        NSx.MetaTags.Timestamp = NSx.MetaTags.Timestamp(requestedSegments(1):requestedSegments(2));
+        NSx.MetaTags.Timestamp(1) = NSx.MetaTags.Timestamp(1) + startTimeStampShift;
+        NSx.MetaTags.DataPoints = cellfun(@(x) size(x,2), NSx.Data, 'UniformOutput', true);
+        NSx.MetaTags.DataDurationSec = NSx.MetaTags.DataDurationSec(requestedSegments(1):requestedSegments(2));
+        NSx.MetaTags.DataDurationSec(1) = NSx.MetaTags.DataDurationSec(1) - (segmentStartDataPoint(requestedSegments(1))-1)/NSx.MetaTags.SamplingFreq;
+        NSx.MetaTags.DataDurationSec(end) = NSx.MetaTags.DataPoints(end)/NSx.MetaTags.SamplingFreq;
+
         % verify amount of data read from disk
         numDataPointsRead = sum(cellfun(@(x)size(x,2),NSx.Data));
         if numDataPointsRead~=numDataPointsRequested
@@ -1114,23 +1117,19 @@ if any(NSx.MetaTags.DataPoints == 0) && flagReadData
 end
 
 %% Remove extra channels that were read, but weren't supposed to be read
-% Commenting this section out since I think that previous code should
-% capture this - DK 20230303
-% channelThatWereRead = min(userRequestedChanRow):max(userRequestedChanRow);
-% if ~isempty(setdiff(channelThatWereRead,userRequestedChanRow))
-%        deleteChannels = setdiff(channelThatWereRead, userRequestedChanRow) - min(userRequestedChanRow) + 1;
-%     if NSx.RawData.PausedFile
-%         for segIDX = 1:size(NSx.Data,2)
-%             NSx.Data{segIDX}(deleteChannels,:) = [];
-%         end
-%     else
-%         NSx.Data(deleteChannels,:) = [];
-%     end
-% end
-
-%% Adjust the ChannelID variable to match the read electrodes
-channelIDToDelete = setdiff(1:channelCount, requestedChanRow);
-NSx.MetaTags.ChannelID(channelIDToDelete) = [];
+if isfield(NSx,'Data')
+    channelsRead = min(requestedChannelIndex):max(requestedChannelIndex);
+    idxToKeep = ismember(channelsRead,requestedChannelIndex);
+    NSx.Data = cellfun(@(x)x(idxToKeep,:),NSx.Data,'UniformOutput',false);
+end
+if isfield(NSx,'ElectrodesInfo')
+    idxToRemove = ~ismember(1:length(NSx.ElectrodesInfo),requestedChannelIndex);
+    NSx.ElectrodesInfo(idxToRemove) = [];
+end
+if isfield(NSx.MetaTags,'ChannelID')
+    idxToRemove = ~ismember(1:length(NSx.MetaTags.ChannelID),requestedChannelIndex);
+    NSx.MetaTags.ChannelID(idxToRemove) = [];
+end
 
 %% Zero-pad data if requested
 if flagZeroPad
