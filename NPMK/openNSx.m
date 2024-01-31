@@ -359,6 +359,9 @@ function varargout = openNSx(varargin)
 %   - Repair skipfactor implementation
 %   - Clean up documentation
 %   - Clean up code
+%
+% 7.4.6.1: January 30, 2024
+%   - Bug fix: mishandling of numerical input arguments
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Define the NSx data structure and sub-branches.
@@ -368,7 +371,7 @@ NSx.MetaTags = struct('FileTypeID',[],'SamplingLabel',[],'ChannelCount',[],'Samp
                       'Timestamp', [], 'DataPoints', [], 'DataDurationSec', [], 'openNSxver', [], 'Filename', [], 'FilePath', [], ...
                       'FileExt', []);
 
-NSx.MetaTags.openNSxver = '7.4.6.0';
+NSx.MetaTags.openNSxver = '7.4.6.1';
 
 %% Check for the latest version of NPMK
 if exist('NPMKverChecker','file')==2
@@ -439,21 +442,29 @@ for i=1:length(varargin)
         flagAlign = false;
     elseif ischar(inputArgument) && strcmpi(inputArgument, 'read')
         flagReadData = 1;
-    elseif ischar(inputArgument) && ((strncmp(inputArgument, 't:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'duration'))
+    elseif (ischar(inputArgument) && strncmp(inputArgument, 't:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'duration')
         if strncmp(inputArgument, 't:', 2)
             inputArgument(1:2) = [];
             inputArgument = str2num(inputArgument); %#ok<ST2NM>
         elseif ischar(inputArgument)
             inputArgument = str2num(inputArgument); %#ok<ST2NM>
         end
+        assert(isnumeric(inputArgument),'Must provide duration input that can be resolved to a numeric value');
         flagModifiedTime = 1;
         requestedStartValue = inputArgument(1);
         requestedEndValue = inputArgument(end);
         next = '';
-    elseif ischar(inputArgument) && ((strncmp(inputArgument, 'e:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'electrodes'))
+    elseif (ischar(inputArgument) && strncmp(inputArgument, 'e:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'electrodes')
         assert(exist('KTUEAMapFile','file')==2,'To read data by ''electrodes'' the function KTUEAMapFile needs to be in path.');
         mapFile = KTUEAMapFile;
-        requestedElectrodes = str2num(inputArgument(3:end)); %#ok<ST2NM>
+        if strncmp(inputArgument, 'e:', 2)
+            requestedElectrodes = str2num(inputArgument(3:end)); %#ok<ST2NM>
+        elseif ischar(inputArgument)
+            requestedElectrodes = str2num(inputArgument); %#ok<ST2NM>
+        else
+            requestedElectrodes = inputArgument;
+        end
+        assert(isnumeric(inputArgument),'Must provide electrode input that can be resolved to a numeric value');
         if min(requestedElectrodes)<1 || max(requestedElectrodes)>128
             assert(min(requestedElectrodes)>=1 && max(requestedElectrodes)<=128, 'The electrode number cannot be less than 1 or greater than 128.');
         end
@@ -463,7 +474,7 @@ for i=1:length(varargin)
         end
         flagElectrodeReading = 1;
         next = '';
-    elseif ischar(inputArgument) && ((strncmp(inputArgument, 's:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'skipFactor'))
+    elseif (ischar(inputArgument) && strncmp(inputArgument, 's:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'skipFactor')
         if strncmp(inputArgument, 's:', 2)
             requestedSkipFactor = str2num(inputArgument(3:end)); %#ok<ST2NM>
         elseif ischar(inputArgument)
@@ -471,17 +482,18 @@ for i=1:length(varargin)
         else
             requestedSkipFactor = inputArgument;
         end
+        assert(isnumeric(requestedSkipFactor) && isscalar(requestedSkipFactor) && floor(requestedSkipFactor)==requestedSkipFactor,'Must provide skipfactor input that can be resolved to a scalar integer value')
         next = '';
-    elseif ischar(inputArgument) && ((strncmp(inputArgument, 'c:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'channels'))
+    elseif (ischar(inputArgument) && strncmp(inputArgument, 'c:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'channels')
         if strncmp(inputArgument, 'c:', 2)
             requestedChanRow = str2num(inputArgument(3:end)); %#ok<ST2NM>
         elseif ischar(inputArgument)
-            requestedChanRow = str2num(inputArgument(3:end)); %#ok<ST2NM>
+            requestedChanRow = str2num(inputArgument); %#ok<ST2NM>
         else
             requestedChanRow = inputArgument;
         end
         next = '';
-    elseif ischar(inputArgument) && (any(strcmpi(inputArgument,{'double','int16','short'})) || (strncmp(varargin{i}, 'p:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/') || strcmpi(next, 'precision'))
+    elseif (ischar(inputArgument) && any(strcmpi(inputArgument,{'double','int16','short'})) || (strncmp(varargin{i}, 'p:', 2) && inputArgument(3) ~= '\' && inputArgument(3) ~= '/')) || strcmpi(next, 'precision')
         if strncmpi(inputArgument, 'p:', 2)
             precisionTypeRaw = inputArgument(3:end);
         else
@@ -803,7 +815,7 @@ try
                     tsDiffs = diff(timestamps);
                     vals = find(tsDiffs > minimumPauseLength);
                     for jj=1:length(vals)
-                        numDatapointsLastSegment = numPacketsProcessed - segmentDatapoints(1:currSegment) + vals(jj);
+                        numDatapointsLastSegment = numPacketsProcessed - sum(segmentDatapoints(~isnan(segmentDatapoints))) + vals(jj);
                         segmentDatapoints(currSegment) = numDatapointsLastSegment;
                         segmentDurations(currSegment) = timestamps(vals(jj)) - segmentTimestamps(currSegment) + 1;
                         segmentTimestamps(currSegment + 1) = timestamps(vals(jj) + 1);
