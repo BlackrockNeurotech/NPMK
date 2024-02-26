@@ -508,4 +508,14 @@ NPMK Version 2.8.2.0: 5 May 2014
 %   - Fixed a bug related to NeuralSG file format (File Spec 2.1).
 %
 
-LATEST:5.5.2.0
+***** NPMK Version 5.5.3.0 :February 26, 2024 *****
+%
+% 7.4.4.0: openNSx: April 1, 2023
+%   - (From 7.4.3.0) Fixed a minor bug for when the data header is not
+%     written properly and the data needs to be used to calculate the data
+%     length.
+%   - Accounts for many segments in files for clock drift correction
+%   - Changed 'zeropad' default behavior to be 'no'
+%
+
+LATEST:5.5.3.0
