@@ -796,7 +796,8 @@ try
             % allow segments to be reintroduced into the data structures if a
             % timestamp difference of 200% greater than expected is identified
             fseek(FID,f.EOexH + 1,'bof'); % + byte (header)
-            
+            allTimestamps = fread(FID, 'uint64', packetSize-8)';
+            fseek(FID,f.EOexH + 1,'bof'); % + byte (header)
             % Process file in frames. initialize with the first packet's
             % timestamp.
             % For each frame, read the timestamp of the last packet.
@@ -838,7 +839,7 @@ try
                 % check whether elapsed time for this frame meets or exceeds
                 % expected length with minimum gap
                 actualTicksElapsed = timestampLast - timestampFirst;
-                if actualTicksElapsed >= expectedTicksElapsedMinPause
+                if round(actualTicksElapsed,4) >= round(expectedTicksElapsedMinPause,4)
                     
                     % a gap exists in this frame; we need to identify where it
                     % occurs
@@ -1362,6 +1363,13 @@ if flagReadData && flagOneSamplePerPacket && flagAlign
         NSx.MetaTags.DataPoints(ii) = size(NSx.Data{ii},2);
         NSx.MetaTags.DataDurationSec(ii) = size(NSx.Data{ii},2)/NSx.MetaTags.SamplingFreq;
     end
+elseif flagReadData && flagOneSamplePerPacket
+    nSegments = size(NSx.Data,2);
+    for i=1:nSegments
+        NSx.MetaTags.DataPoints(i) = size(NSx.Data{i},2);
+        NSx.MetaTags.DataDurationSec(i) = size(NSx.Data{i},2)/NSx.MetaTags.SamplingFreq;
+    end
+    NSx.MetaTags.Timestamp = allTimestamps;
 end
 
 % reduce to array if only one cell
