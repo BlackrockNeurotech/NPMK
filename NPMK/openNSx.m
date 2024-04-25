@@ -809,10 +809,10 @@ try
             minimumPauseLength = requestedMaxTickMultiple*ticksPerSample;
             timestampFirst = fread(FID,1,'uint64');
             numPacketsProcessed = 0;
-            segmentTimestamps = nan(1,1e3);
+            segmentTimestamps = zeros(1,1e3);
             segmentTimestamps(1) = timestampFirst;
-            segmentDatapoints = nan(1,1e3);
-            segmentDurations = nan(1,1e3);
+            segmentDatapoints = zeros(1,1e3);
+            segmentDurations = zeros(1,1e3);
             currSegment = 1;
             while double(ftell(FID)) < (f.EOF-(packetSize-1-8))
                 
