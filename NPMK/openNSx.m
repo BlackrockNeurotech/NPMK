@@ -1433,16 +1433,15 @@ if flagReadData && flagOneSamplePerPacket
     end
 end
 
+% remove Time field when not used
+if flagSegment && flagAlign
+    NSx = rmfield(NSx,'Time');
+end
+
 % reduce to array if only one cell
 if flagReadData && iscell(NSx.Data) && length(NSx.Data)==1
     NSx.Data = NSx.Data{1};
-    if isfield(NSx,'Time')
-        NSx.Time = NSx.Time{1};
-    end
-end
-
-if flagSegment && flagAlign
-    NSx = rmfield(NSx,'Time');
+    NSx.Time = NSx.Time{1};
 end
 
 % Display a report of basic file information and the Basic Header.
