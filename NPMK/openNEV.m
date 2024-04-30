@@ -238,8 +238,9 @@ NEV.MetaTags.openNEVver = '6.2.2.0';
 NEV.MetaTags = struct('Subject', [], 'Experimenter', [], 'DateTime', [],...
     'SampleRes',[],'Comment',[],'FileTypeID',[],'Flags',[], 'openNEVver', [], ...
     'DateTimeRaw', [], 'FileSpec', [], 'PacketBytes', [], 'HeaderOffset', [], ...
-    'DataDuration', [], 'DataDurationSec', [], 'PacketCount', [], ...
-    'TimeRes', [], 'Application', [], 'Filename', [], 'FilePath', []);
+    'PacketCount', [], 'TimeRes', [], 'Application', [], 'Filename', [], 'FilePath', []);
+    % 'DataDuration', [], 'DataDurationSec', [],
+    
 NEV.Data = struct('SerialDigitalIO', [], 'Spikes', [], 'Comments', [], 'VideoSync', [], ...
     'Tracking', [], 'TrackingEvents', [], 'PatientTrigger', [], 'Reconfig', []);
 NEV.Data.Spikes = struct('TimeStamp', [],'Electrode', [],...
@@ -473,11 +474,12 @@ NEV.MetaTags.Comment(find(NEV.MetaTags.Comment==0,1):end) = 0;
 Trackers.fBasicHeader = ftell(FID); %#ok<NASGU>
 
 % Calculating the length of the data
-currentLocation = ftell(FID);
-fseek(FID, -Trackers.countPacketBytes, 'eof');
-NEV.MetaTags.DataDuration = fread(FID, 1, 'uint32=>double');
-NEV.MetaTags.DataDurationSec = double(NEV.MetaTags.DataDuration) / double(NEV.MetaTags.SampleRes);
-fseek(FID, currentLocation, 'bof');
+% removing the dataduration fields until further notice - DK
+% currentLocation = ftell(FID);
+% fseek(FID, -Trackers.countPacketBytes, 'eof');
+% NEV.MetaTags.DataDuration = fread(FID, 1, 'uint32=>double');
+% NEV.MetaTags.DataDurationSec = double(NEV.MetaTags.DataDuration) / double(NEV.MetaTags.SampleRes);
+% fseek(FID, currentLocation, 'bof');
 
 %% Reading ExtendedHeader information
 for ii=1:Trackers.countExtHeader
@@ -953,7 +955,7 @@ if strcmpi(Flags.Report, 'report')
     disp( '*** FILE INFO **************************');
     disp(['File Name           = ' NEV.MetaTags.Filename]);
     disp(['Filespec            = ' NEV.MetaTags.FileSpec]);
-    disp(['Data Duration (min) = ' num2str(round(NEV.MetaTags.DataDuration/NEV.MetaTags.SampleRes/60))]);
+%     disp(['Data Duration (min) = ' num2str(round(NEV.MetaTags.DataDuration/NEV.MetaTags.SampleRes/60))]);
     disp(['Packet Counts       = ' num2str(Trackers.countDataPacket)]);
     disp(' ');
     disp( '*** BASIC HEADER ***********************');
