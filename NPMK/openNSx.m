@@ -602,14 +602,6 @@ if flagReadData && flagConvertToUv && ~strcmpi(requestedPrecisionType,'double')
     requestedPrecisionType = 'double';
 end
 
-% either or both align and segment must be enabled
-if ~flagSegment
-    if flagAlign
-        flagAlign = false;
-        warning('Disabling alignment because segmentation was disabled')
-    end
-end
-
 % warn if only reading header information
 if ~flagReadData
     warning('Reading the header information only.');
@@ -808,6 +800,14 @@ try
         patchCheck = fread(FID,10,'uint32',packetSize-4); % read "samples" counts from 10 packets
         if sum(patchCheck) == length(patchCheck) % verify all 1
             flagOneSamplePerPacket = true;
+        end
+    end
+
+    % either or both align and segment must be enabled
+    if ~flagSegment && flagOneSamplePerPacket
+        if flagAlign
+            flagAlign = false;
+            warning('Disabling alignment because segmentation was disabled')
         end
     end
     
@@ -1434,7 +1434,7 @@ if flagReadData && flagOneSamplePerPacket
 end
 
 % remove Time field when not used
-if flagSegment && flagAlign
+if ~flagOneSamplePerPacket || (flagSegment && flagAlign)
     NSx = rmfield(NSx,'Time');
 end
 
