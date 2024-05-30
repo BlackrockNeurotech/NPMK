@@ -415,6 +415,9 @@ function varargout = openNSx(varargin)
 % 7.4.6.1: January 30, 2024
 %   - Bug fix: mishandling of numerical input arguments
 %   - Bug fix: support noncontiguous channel output
+%
+% 7.4.6.2: April 26, 2024
+%   - Add feature to disable data segmentation for file spec >=3.0
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Define the NSx data structure and sub-branches.
@@ -424,7 +427,7 @@ NSx.MetaTags = struct('FileTypeID',[],'SamplingLabel',[],'ChannelCount',[],'Samp
                       'Timestamp', [], 'DataPoints', [], 'DataDurationSec', [], 'openNSxver', [], 'Filename', [], 'FilePath', [], ...
                       'FileExt', []);
 
-NSx.MetaTags.openNSxver = '7.4.6.1';
+NSx.MetaTags.openNSxver = '7.4.6.2';
 
 %% Check for the latest version of NPMK
 if exist('NPMKverChecker','file')==2
