@@ -432,7 +432,7 @@ NPMK Version 2.8.2.0: 5 May 2014
 %   - Gives a warning about FileSpec 3.0 and gives the user options for how 
 %     to proceed.
 %   - Added a warning about the data unit and that by default it in the
-%     unit of 250 nV or 1/4 µV.
+%     unit of 250 nV or 1/4 ï¿½V.
 %   - If the units are in "raw", ths correct information is now written to
 %     the electrodes header: 250 nV (raw). 
 %
@@ -456,7 +456,7 @@ NPMK Version 2.8.2.0: 5 May 2014
 %     file instead of it being fixed at 300 Hz.
 % 
 % 7.3.1.0: openNSx: October 2, 2020
-%   - If the units are in µV (openNSx('uv'), ths correct information is now 
+%   - If the units are in ï¿½V (openNSx('uv'), ths correct information is now 
 %     written to the electrodes header: 1000 nV (raw). 
 %
 
@@ -477,9 +477,9 @@ NPMK Version 2.8.2.0: 5 May 2014
 % 7.4.0.0: openNSx: October 29, 2020
 %   - Undid changes made to AnalogUnit and instead implemented
 %     NSx.ElectrodesInfo.Resolution to show what the resolution of the data
-%     is. By default, the resolution is set to 0.250 µV. If used with
-%     parameter 'uv', the resolution will be 1 µV. To always convert the
-%     data to µV, divide NSx.Data(CHANNEL,:) by
+%     is. By default, the resolution is set to 0.250 ï¿½V. If used with
+%     parameter 'uv', the resolution will be 1 ï¿½V. To always convert the
+%     data to ï¿½V, divide NSx.Data(CHANNEL,:) by
 %     NSx.ElectrodesInfo(CHANNEL).Resolution.
 %
 
@@ -508,4 +508,30 @@ NPMK Version 2.8.2.0: 5 May 2014
 %   - Fixed a bug related to NeuralSG file format (File Spec 2.1).
 %
 
-LATEST:5.5.2.0
+***** NPMK Version 5.5.3.0 :February 26, 2024 *****
+%
+% 7.4.4.0: openNSx: April 1, 2023
+%   - (From 7.4.3.0) Fixed a minor bug for when the data header is not
+%     written properly and the data needs to be used to calculate the data
+%     length.
+%   - Accounts for many segments in files for clock drift correction
+%   - Changed 'zeropad' default behavior to be 'no'
+%
+
+***** NPMK Version 5.5.4.0 :June 5, 2024 *****
+%
+% 7.4.6.2: openNSx: April 26, 2024
+%   - Bank numbers on new files are not alpha which caused problems on save
+%   - Improved speed & memory usage for Gemini system recordings
+%   - Change messages about errors to actual errors
+%   - NPMK SettingsManager, getFile, and NPMKverChecker made optional
+%   - Force 'double' precision (with warning) if conversion to uV requested
+%   - Repair skipfactor implementation
+%   - Clean up documentation
+%   - Clean up code
+%   - Bug fix: mishandling of numerical input arguments
+%   - Bug fix: support noncontiguous channel output
+%   - Add feature to disable data segmentation for file spec >=3.0
+%
+
+LATEST:5.5.4.0
