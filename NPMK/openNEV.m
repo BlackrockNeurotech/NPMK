@@ -227,6 +227,8 @@ function varargout = openNEV(varargin)
 % 6.2.2.0: March 7, 2022
 %   - Fixed a data offset error related to handling 64-bit timestamps in
 %     spike data. (Spencer Kellis)
+% 6.2.3.0: June 13, 2024
+%   - Removed DataDuration and DataDurationSec from output
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Check for the latest version fo NPMK

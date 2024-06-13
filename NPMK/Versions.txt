@@ -533,5 +533,7 @@ NPMK Version 2.8.2.0: 5 May 2014
 %   - Bug fix: support noncontiguous channel output
 %   - Add feature to disable data segmentation for file spec >=3.0
 %
-
+% 6.2.3.0: openNEV: June 13, 2024
+%   - Removed DataDuration and DataDurationSec from output
+%
 LATEST:5.5.4.0
