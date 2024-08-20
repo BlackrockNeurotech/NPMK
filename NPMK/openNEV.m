@@ -454,7 +454,7 @@ if or(strcmpi(NEV.MetaTags.FileTypeID, 'NEURALEV'), strcmpi(NEV.MetaTags.FileTyp
         NEV.MetaTags.Subject      = METATAGS{3}(5:end-5);
         NEV.MetaTags.Experimenter = [METATAGS{5}(8:end-8) ' ' METATAGS{6}(7:end-7)];
     else
-        warning(['No .sif file found corresponding to ' fullFilePath...
+        warning(['No .sif file found corresponding to ' fileFullPath...
             '. Subject and Experimenter data skipped in MetaTags']);
     end
 end
