@@ -236,13 +236,12 @@ NPMKverChecker
 
 %% Defining structures
 NEV = struct('MetaTags',[], 'ElectrodesInfo', [], 'Data', []);
-NEV.MetaTags.openNEVver = '6.2.3.0';
 NEV.MetaTags = struct('Subject', [], 'Experimenter', [], 'DateTime', [],...
     'SampleRes',[],'Comment',[],'FileTypeID',[],'Flags',[], 'openNEVver', [], ...
     'DateTimeRaw', [], 'FileSpec', [], 'PacketBytes', [], 'HeaderOffset', [], ...
     'PacketCount', [], 'TimeRes', [], 'Application', [], 'Filename', [], 'FilePath', []);
     % 'DataDuration', [], 'DataDurationSec', [],
-    
+NEV.MetaTags.openNEVver = '6.2.3.0';
 NEV.Data = struct('SerialDigitalIO', [], 'Spikes', [], 'Comments', [], 'VideoSync', [], ...
     'Tracking', [], 'TrackingEvents', [], 'PatientTrigger', [], 'Reconfig', []);
 NEV.Data.Spikes = struct('TimeStamp', [],'Electrode', [],...
@@ -300,6 +299,7 @@ for i=1:length(varargin)
                      strcmpi(tempst(1:2), '\\') || ...
                      strcmpi(tempst(end-3), '.'))
                 fileFullPath = varargin{i};
+                [path, fileName, fileExt] = fileparts(fileFullPath);
                 if exist(fileFullPath, 'file') ~= 2
                     disp('The file does not exist.');
                     varargout{1} = [];
@@ -338,11 +338,12 @@ end; clear i;
 %% Defining and validating variables
 if ~exist('fileFullPath', 'var')
     if exist('getFile.m', 'file') == 2
-        [fileName pathName] = getFile('*.nev*', 'Choose a NEV file...');
+        [fileName, pathName] = getFile('*.nev*', 'Choose a NEV file...');
     else
-        [fileName pathName] = uigetfile;
+        [fileName, pathName] = uigetfile;
     end
     fileFullPath = [pathName fileName];
+    [path, fileName, fileExt] = fileparts(fileFullPath);
     if fileFullPath==0;
         clear variables;
         if nargout
@@ -352,8 +353,6 @@ if ~exist('fileFullPath', 'var')
         return
     end
 end
-
-[~, ~, fileExt] = fileparts(fileFullPath);
 
 %% Loading .x files for multiNSP configuration
 if strcmpi(fileExt(2:4), 'nev') && length(fileExt) == 5
@@ -447,10 +446,16 @@ Trackers.countExtHeader   = typecast(BasicHeader(333:336), 'uint32');
 clear BasicHeader;
 
 if or(strcmpi(NEV.MetaTags.FileTypeID, 'NEURALEV'), strcmpi(NEV.MetaTags.FileTypeID, 'BREVENTS'))
-    if exist([fileFullPath(1:end-8) '.sif'], 'file') == 2
-        METATAGS = textread([fileFullPath(1:end-8) '.sif'], '%s');
+    prefixes = {'Hub1-', 'Hub2-','NSP-'};
+    fileNameBase = fileName(1:end-4);
+    sifName = [path '\' erase(fileNameBase,prefixes) '.sif'];
+    if exist(sifName, 'file') == 2
+        METATAGS = textread(sifName, '%s');
         NEV.MetaTags.Subject      = METATAGS{3}(5:end-5);
         NEV.MetaTags.Experimenter = [METATAGS{5}(8:end-8) ' ' METATAGS{6}(7:end-7)];
+    else
+        warning(['No .sif file found corresponding to ' fullFilePath...
+            '. Subject and Experimenter data skipped in MetaTags']);
     end
 end
 if ~any(strcmpi(NEV.MetaTags.FileSpec, {'2.1', '2.2', '2.3', '3.0'}))
