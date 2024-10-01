@@ -727,7 +727,7 @@ if strcmpi(Flags.ReadData, 'read')
             NEV.Data.Comments.CharSet = tempCharSet(orderOfTS); clear tempCharSet;
             colorFlag = tRawData(timeStampBytes+4, commentIndices);
             NEV.Data.Comments.TimeStampStarted = tRawData(timeStampBytes+5:timeStampBytes+8, commentIndices);
-            tempColor = NEV.Data.Comments.TimeStampStarted;
+            tempColor = NEV.Data.Comments.TimeStampStarted; % RGBA and starting timestamp data fields shared
             tempTimeStampStarted = typecast(NEV.Data.Comments.TimeStampStarted(:), 'uint32').';
             if strcmp(Flags.PTP, 'PTP')
                 diffFactor = 1000; % ns -> µs conversion
@@ -762,14 +762,17 @@ if strcmpi(Flags.ReadData, 'read')
             NEV.Data.Comments.TimeStampStartedSec = double(NEV.Data.Comments.TimeStampStarted)/double(NEV.MetaTags.TimeRes);
             NEV.Data.Comments.Text(neuroMotiveEvents,:) = [];
 
-            % remove duplicated packets for color and time stamp start
-            NEV.Data.Comments.TimeStampStarted      = NEV.Data.Comments.TimeStampStarted(colorFlag == 1);
-            NEV.Data.Comments.TimeStampStartedSec   = NEV.Data.Comments.TimeStampStartedSec(colorFlag == 1);
-            NEV.Data.Comments.TimeStamp             = NEV.Data.Comments.TimeStamp(colorFlag == 1);
-            NEV.Data.Comments.TimeStampSec          = NEV.Data.Comments.TimeStampSec(colorFlag == 1);
-            NEV.Data.Comments.CharSet               = NEV.Data.Comments.CharSet(colorFlag == 1);
-            NEV.Data.Comments.Text                  = NEV.Data.Comments.Text(colorFlag == 1,:);
-            NEV.Data.Comments.Color                 = NEV.Data.Comments.Color(:,colorFlag == 1);
+            % remove duplicated comment packets for color and time stamp
+            % start in filespec 3.0
+            if strcmp(NEV.MetaTags.FileSpec, '3.0')
+                NEV.Data.Comments.TimeStampStarted      = NEV.Data.Comments.TimeStampStarted(colorFlag == 1);
+                NEV.Data.Comments.TimeStampStartedSec   = NEV.Data.Comments.TimeStampStartedSec(colorFlag == 1);
+                NEV.Data.Comments.TimeStamp             = NEV.Data.Comments.TimeStamp(colorFlag == 1);
+                NEV.Data.Comments.TimeStampSec          = NEV.Data.Comments.TimeStampSec(colorFlag == 1);
+                NEV.Data.Comments.CharSet               = NEV.Data.Comments.CharSet(colorFlag == 1);
+                NEV.Data.Comments.Text                  = NEV.Data.Comments.Text(colorFlag == 1,:);
+                NEV.Data.Comments.Color                 = NEV.Data.Comments.Color(:,colorFlag == 1);
+            end
 
             clear commentIndices;
         end
