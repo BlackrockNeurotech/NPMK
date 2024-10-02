@@ -726,17 +726,16 @@ if strcmpi(Flags.ReadData, 'read')
             tempCharSet = tRawData(timeStampBytes+3, commentIndices);
             NEV.Data.Comments.CharSet = tempCharSet(orderOfTS); clear tempCharSet;
             colorFlag = tRawData(timeStampBytes+4, commentIndices);
-            NEV.Data.Comments.TimeStampStarted = tRawData(timeStampBytes+5:timeStampBytes+8, commentIndices);
-            tempColor = NEV.Data.Comments.TimeStampStarted; % RGBA and starting timestamp data fields shared
-            tempTimeStampStarted = typecast(NEV.Data.Comments.TimeStampStarted(:), 'uint32').';
+            tempPayload = tRawData(timeStampBytes+5:timeStampBytes+8, commentIndices);
+            diffTimeStampStarted = typecast(tempPayload(:), 'uint32').';
             if strcmp(Flags.PTP, 'PTP')
                 diffFactor = 1000; % ns -> µs conversion
             else
                 diffFactor = 1; % sample count
             end
-            tempTimeStampStarted = NEV.Data.Comments.TimeStamp-uint64(tempTimeStampStarted)*diffFactor;
-            NEV.Data.Comments.TimeStampStarted = tempTimeStampStarted(orderOfTS); clear tempTimeStampStarted;
-            NEV.Data.Comments.Color(:,colorFlag == 1) = tempColor(:,colorFlag == 0); clear tempColor
+            tempTimeStampStarted = NEV.Data.Comments.TimeStamp-uint64(diffTimeStampStarted)*diffFactor;
+            NEV.Data.Comments.TimeStampStarted = tempTimeStampStarted(orderOfTS); clear diffTimeStampStarted tempTimeStampStarted;
+            NEV.Data.Comments.Color = dec2hex(typecast(tempPayload(:),'uint32')); clear tempPayload
             
             tempText = char(tRawData(timeStampBytes+9:Trackers.countPacketBytes, commentIndices).');
             NEV.Data.Comments.Text  = tempText(orderOfTS,:); clear tempText;
@@ -771,10 +770,10 @@ if strcmpi(Flags.ReadData, 'read')
                 NEV.Data.Comments.TimeStampSec          = NEV.Data.Comments.TimeStampSec(colorFlag == 1);
                 NEV.Data.Comments.CharSet               = NEV.Data.Comments.CharSet(colorFlag == 1);
                 NEV.Data.Comments.Text                  = NEV.Data.Comments.Text(colorFlag == 1,:);
-                NEV.Data.Comments.Color                 = NEV.Data.Comments.Color(:,colorFlag == 1);
+                NEV.Data.Comments.Color                 = NEV.Data.Comments.Color(colorFlag == 0,:);
             end
 
-            clear commentIndices;
+            clear commentIndices colorFlag;
         end
         if ~isempty(videoSyncPacketIDIndices)
             NEV.Data.VideoSync.TimeStamp       = Timestamp(videoSyncPacketIDIndices);
