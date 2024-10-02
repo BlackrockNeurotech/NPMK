@@ -760,6 +760,7 @@ if strcmpi(Flags.ReadData, 'read')
             NEV.Data.Comments.TimeStampStarted(neuroMotiveEvents) = [];
             NEV.Data.Comments.TimeStampStartedSec = double(NEV.Data.Comments.TimeStampStarted)/double(NEV.MetaTags.TimeRes);
             NEV.Data.Comments.Text(neuroMotiveEvents,:) = [];
+            colorFlag(neuroMotiveEvents) = [];
 
             % remove duplicated comment packets for color and time stamp
             % start in filespec 3.0
