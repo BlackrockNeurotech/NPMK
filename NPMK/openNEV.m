@@ -229,6 +229,9 @@ function varargout = openNEV(varargin)
 %     spike data. (Spencer Kellis)
 % 6.2.3.0: June 13, 2024
 %   - Removed DataDuration and DataDurationSec from output
+%
+% 6.2.4.0: September 30, 2024
+%   - Fixed timestamp reporting for comments in filespec 3.0 (David Kluger)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Check for the latest version fo NPMK
@@ -241,7 +244,7 @@ NEV.MetaTags = struct('Subject', [], 'Experimenter', [], 'DateTime', [],...
     'DateTimeRaw', [], 'FileSpec', [], 'PacketBytes', [], 'HeaderOffset', [], ...
     'PacketCount', [], 'TimeRes', [], 'Application', [], 'Filename', [], 'FilePath', []);
     % 'DataDuration', [], 'DataDurationSec', [],
-NEV.MetaTags.openNEVver = '6.2.3.0';
+NEV.MetaTags.openNEVver = '6.2.4.0';
 NEV.Data = struct('SerialDigitalIO', [], 'Spikes', [], 'Comments', [], 'VideoSync', [], ...
     'Tracking', [], 'TrackingEvents', [], 'PatientTrigger', [], 'Reconfig', []);
 NEV.Data.Spikes = struct('TimeStamp', [],'Electrode', [],...
@@ -362,17 +365,18 @@ end
 
 
 if ~isfield(Flags, 'Report');        Flags.Report = 'noreport'; end
-if ~isfield(Flags, 'WarningStat');   Flags.WarningStat = 'warning'; end;
+if ~isfield(Flags, 'WarningStat');   Flags.WarningStat = 'warning'; end
 if ~isfield(Flags, 'ReadData');      Flags.ReadData = 'read'; end
 if ~isfield(Flags, 'ParseData');     Flags.ParseData = 'noparse'; end
-if ~isfield(Flags, 'SaveFile');      Flags.SaveFile = 'save'; end;
-if ~isfield(Flags, 'NoMAT');         Flags.NoMAT = 'yesmat'; end;
-if ~isfield(Flags, 'waveformUnits'); Flags.waveformUnits = 'raw'; end;
-if ~isfield(Flags, 'digIOBits');     Flags.digIOBits = '16bits'; end;
-if ~isfield(Flags, 'Overwrite');     Flags.Overwrite = 'nooverwrite'; end;
-if ~isfield(Flags, 'MultiNSP');      Flags.MultiNSP = 'multinsp'; end;
-if ~isfield(Flags, 'selChannels');   Flags.selChannels = 'all'; end;
-if ~isfield(Flags, 'Direct');        Flags.Direct = 'nodirect'; end;
+if ~isfield(Flags, 'SaveFile');      Flags.SaveFile = 'save'; end
+if ~isfield(Flags, 'NoMAT');         Flags.NoMAT = 'yesmat'; end
+if ~isfield(Flags, 'waveformUnits'); Flags.waveformUnits = 'raw'; end
+if ~isfield(Flags, 'digIOBits');     Flags.digIOBits = '16bits'; end
+if ~isfield(Flags, 'Overwrite');     Flags.Overwrite = 'nooverwrite'; end
+if ~isfield(Flags, 'MultiNSP');      Flags.MultiNSP = 'multinsp'; end
+if ~isfield(Flags, 'selChannels');   Flags.selChannels = 'all'; end
+if ~isfield(Flags, 'Direct');        Flags.Direct = 'nodirect'; end
+if ~isfield(Flags, 'PTP');           Flags.PTP = 'noPTP'; end
 
 if strcmpi(Flags.Report, 'report')
     disp(['openNEV ' NEV.MetaTags.openNEVver]);
@@ -447,6 +451,9 @@ clear BasicHeader;
 
 if or(strcmpi(NEV.MetaTags.FileTypeID, 'NEURALEV'), strcmpi(NEV.MetaTags.FileTypeID, 'BREVENTS'))
     prefixes = {'Hub1-', 'Hub2-','NSP-'};
+    if NEV.MetaTags.TimeRes == 1e9
+        Flags.PTP = 'PTP';
+    end
     fileNameBase = fileName(1:end-4);
     sifName = [path '\' erase(fileNameBase,prefixes) '.sif'];
     if exist(sifName, 'file') == 2
@@ -719,9 +726,17 @@ if strcmpi(Flags.ReadData, 'read')
             tempCharSet = tRawData(timeStampBytes+3, commentIndices);
             NEV.Data.Comments.CharSet = tempCharSet(orderOfTS); clear tempCharSet;
             colorFlag = tRawData(timeStampBytes+4, commentIndices);
-            NEV.Data.Comments.TimeStampStarted = tRawData(timeStampBytes+5:timeStampBytes+8, commentIndices);
-            tempTimeStampStarted = typecast(NEV.Data.Comments.TimeStampStarted(:), 'uint32').';
-            NEV.Data.Comments.TimeStampStarted = tempTimeStampStarted(orderOfTS); clear tempTimeStampStarted;
+            tempPayload = tRawData(timeStampBytes+5:timeStampBytes+8, commentIndices);
+            diffTimeStampStarted = typecast(tempPayload(:), 'uint32').';
+            if strcmp(Flags.PTP, 'PTP')
+                diffFactor = 1000; % ns -> µs conversion
+            else
+                diffFactor = 1; % sample count
+            end
+            tempTimeStampStarted = NEV.Data.Comments.TimeStamp-uint64(diffTimeStampStarted)*diffFactor;
+            NEV.Data.Comments.TimeStampStarted = tempTimeStampStarted(orderOfTS); clear diffTimeStampStarted tempTimeStampStarted;
+            NEV.Data.Comments.Color = dec2hex(typecast(tempPayload(:),'uint32')); clear tempPayload
+            
             tempText = char(tRawData(timeStampBytes+9:Trackers.countPacketBytes, commentIndices).');
             NEV.Data.Comments.Text  = tempText(orderOfTS,:); clear tempText;
 
@@ -747,12 +762,19 @@ if strcmpi(Flags.ReadData, 'read')
             NEV.Data.Comments.Text(neuroMotiveEvents,:) = [];
             colorFlag(neuroMotiveEvents) = [];
 
-            % Figuring out the text color of the comments that had color
-            NEV.Data.Comments.Color = dec2hex(NEV.Data.Comments.TimeStampStarted);
-            NEV.Data.Comments.Color(colorFlag == 1,:) = repmat('0', size(NEV.Data.Comments.Color(colorFlag == 1,:)));
-            NEV.Data.Comments.TimeStampStarted(colorFlag == 0) = NEV.Data.Comments.TimeStamp(colorFlag == 0);
+            % remove duplicated comment packets for color and time stamp
+            % start in filespec 3.0
+            if strcmp(NEV.MetaTags.FileSpec, '3.0')
+                NEV.Data.Comments.TimeStampStarted      = NEV.Data.Comments.TimeStampStarted(colorFlag == 1);
+                NEV.Data.Comments.TimeStampStartedSec   = NEV.Data.Comments.TimeStampStartedSec(colorFlag == 1);
+                NEV.Data.Comments.TimeStamp             = NEV.Data.Comments.TimeStamp(colorFlag == 1);
+                NEV.Data.Comments.TimeStampSec          = NEV.Data.Comments.TimeStampSec(colorFlag == 1);
+                NEV.Data.Comments.CharSet               = NEV.Data.Comments.CharSet(colorFlag == 1);
+                NEV.Data.Comments.Text                  = NEV.Data.Comments.Text(colorFlag == 1,:);
+                NEV.Data.Comments.Color                 = NEV.Data.Comments.Color(colorFlag == 0,:);
+            end
 
-            clear commentIndices;
+            clear commentIndices colorFlag;
         end
         if ~isempty(videoSyncPacketIDIndices)
             NEV.Data.VideoSync.TimeStamp       = Timestamp(videoSyncPacketIDIndices);
