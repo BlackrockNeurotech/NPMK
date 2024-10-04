@@ -536,4 +536,8 @@ NPMK Version 2.8.2.0: 5 May 2014
 % 6.2.3.0: openNEV: June 13, 2024
 %   - Removed DataDuration and DataDurationSec from output
 %
-LATEST:5.5.4.0
+***** NPMK Version 5.5.5.0 :June 5, 2024 *****
+% 6.2.4.0: September 30, 2024
+%   - Fixed timestamp reporting for comments in filespec 3.0 (David Kluger)
+%
+LATEST:5.5.5.0
