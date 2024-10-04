@@ -767,10 +767,10 @@ if strcmpi(Flags.ReadData, 'read')
             if strcmp(NEV.MetaTags.FileSpec, '3.0')
                 NEV.Data.Comments.TimeStampStarted      = NEV.Data.Comments.TimeStampStarted(colorFlag == 1);
                 NEV.Data.Comments.TimeStampStartedSec   = NEV.Data.Comments.TimeStampStartedSec(colorFlag == 1);
-                NEV.Data.Comments.TimeStamp             = NEV.Data.Comments.TimeStamp(colorFlag == 1);
-                NEV.Data.Comments.TimeStampSec          = NEV.Data.Comments.TimeStampSec(colorFlag == 1);
-                NEV.Data.Comments.CharSet               = NEV.Data.Comments.CharSet(colorFlag == 1);
-                NEV.Data.Comments.Text                  = NEV.Data.Comments.Text(colorFlag == 1,:);
+                NEV.Data.Comments.TimeStamp             = NEV.Data.Comments.TimeStamp(colorFlag == 0);
+                NEV.Data.Comments.TimeStampSec          = NEV.Data.Comments.TimeStampSec(colorFlag == 0);
+                NEV.Data.Comments.CharSet               = NEV.Data.Comments.CharSet(colorFlag == 0);
+                NEV.Data.Comments.Text                  = NEV.Data.Comments.Text(colorFlag == 0,:);
                 NEV.Data.Comments.Color                 = NEV.Data.Comments.Color(colorFlag == 0,:);
             end
 
