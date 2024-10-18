@@ -102,18 +102,25 @@ clear next;
 %  optional.
 if ~exist('channels', 'var'); channels = (1:size(NSx.Data, 1))'; end
 if ~exist('duration', 'var'); duration = (1:size(NSx.Data, 2))'; end
-if ~exist('filter', 'var');   filter = [];  end
+% if ~exist('filter', 'var');   filter = [];  end
 
 %% Apply filter
-Data = NSx.Data(channels, duration).';
+Data = double(NSx.Data(channels, duration).');
 
-if ~isempty(filter)
+if length(filterCorner) > 1
+    
+    % using bandpass filter
+    [b, a] = butter(4, filterCorner/15000, 'bandpass');
+    Data = filter(b, a, Data);    
+else
+    
+    % using highpass filter
     [b, a] = butter(4, filterCorner/15000, 'high');
     Data = filter(b, a, Data);
 end
 
 %% Threshold
-if isfield(NSx, 'ElectrodesInfo');
+if isfield(NSx, 'ElectrodesInfo')
     if (isscalar(threshold) && all([NSx.ElectrodesInfo(channels).MaxAnalogValue] == NSx.ElectrodesInfo(1).MaxAnalogValue) && ...
             all([NSx.ElectrodesInfo(channels).MaxDigiValue] == NSx.ElectrodesInfo(1).MaxDigiValue))
         threshold = (threshold * double(NSx.ElectrodesInfo(1).MaxDigiValue) / ...
@@ -164,5 +171,3 @@ for ii = 1:length(Spikes.TimeStamp)
 end
 % convert index to actual channel number
 Spikes.Electrode = channels(Spikes.Electrode);
-
-
