@@ -6,7 +6,7 @@ function varargout = openNSx(varargin)
 % structure. Works with File Spec 2.1, 2.2, 2.3, and 3.0.
 % 
 % OUTPUT = openNSx('ver')
-% OUTPUT = openNSx(FNAME, 'read', 'report', 'e:xx:xx', 'c:xx:xx', 't:xx:xx', MODE, 'precision', 'skipfactor', 'nozeropad').
+% OUTPUT = openNSx(FNAME, 'read', 'report', 'e:xx:xx', 'c:xx:xx', 't:xx:xx', MODE, 'precision', 'skipfactor', 'zeropad').
 % 
 % All input arguments are optional. Input arguments can be in any order.
 %
