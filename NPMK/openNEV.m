@@ -733,7 +733,7 @@ if strcmpi(Flags.ReadData, 'read')
             else
                 diffFactor = 1; % sample count
             end
-            tempTimeStampStarted = NEV.Data.Comments.TimeStamp-uint64(diffTimeStampStarted)*diffFactor;
+            tempTimeStampStarted = uint64(NEV.Data.Comments.TimeStamp)-uint64(diffTimeStampStarted)*diffFactor;
             NEV.Data.Comments.TimeStampStarted = tempTimeStampStarted(orderOfTS); clear diffTimeStampStarted tempTimeStampStarted;
             NEV.Data.Comments.Color = dec2hex(typecast(tempPayload(:),'uint32')); clear tempPayload
             
