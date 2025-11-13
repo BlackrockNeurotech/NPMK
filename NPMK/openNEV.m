@@ -442,7 +442,7 @@ NEV.MetaTags.TimeRes      = double(typecast(BasicHeader(21:24), 'uint32'));
 NEV.MetaTags.SampleRes    = typecast(BasicHeader(25:28), 'uint32');
 t                         = double(typecast(BasicHeader(29:44), 'uint16'));
 tempApp                   = BasicHeader(45:76)';
-tempApp(find(tempApp == 0):end) = [];
+tempApp(find(tempApp == 0, 1, 'first'):end) = [];
 NEV.MetaTags.Application  = char(tempApp); clear tempApp;
 NEV.MetaTags.Comment      = char(BasicHeader(77:332)');
 [NEV.MetaTags.FilePath, NEV.MetaTags.Filename, NEV.MetaTags.FileExt] = fileparts(fileFullPath);
