@@ -232,6 +232,12 @@ function varargout = openNEV(varargin)
 %
 % 6.2.4.0: September 30, 2024
 %   - Fixed timestamp reporting for comments in filespec 3.0 (David Kluger)
+%
+% 6.2.5.0: openNEV: December 2, 2025
+%   - Forced uint64 precision on comment timestamps (Toren/DK)
+%   - Fixed bug in 2025b, which no longer accepts bad index syntax
+%   (Mariana B)/DK
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Check for the latest version fo NPMK
@@ -244,7 +250,7 @@ NEV.MetaTags = struct('Subject', [], 'Experimenter', [], 'DateTime', [],...
     'DateTimeRaw', [], 'FileSpec', [], 'PacketBytes', [], 'HeaderOffset', [], ...
     'PacketCount', [], 'TimeRes', [], 'Application', [], 'Filename', [], 'FilePath', []);
     % 'DataDuration', [], 'DataDurationSec', [],
-NEV.MetaTags.openNEVver = '6.2.4.0';
+NEV.MetaTags.openNEVver = '6.2.5.0';
 NEV.Data = struct('SerialDigitalIO', [], 'Spikes', [], 'Comments', [], 'VideoSync', [], ...
     'Tracking', [], 'TrackingEvents', [], 'PatientTrigger', [], 'Reconfig', []);
 NEV.Data.Spikes = struct('TimeStamp', [],'Electrode', [],...
