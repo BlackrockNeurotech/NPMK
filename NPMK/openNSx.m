@@ -6,7 +6,7 @@ function varargout = openNSx(varargin)
 % structure. Works with File Spec 2.1, 2.2, 2.3, and 3.0.
 % 
 % OUTPUT = openNSx('ver')
-% OUTPUT = openNSx(FNAME, 'read', 'report', 'e:xx:xx', 'c:xx:xx', 't:xx:xx', MODE, 'precision', 'skipfactor', 'nozeropad').
+% OUTPUT = openNSx(FNAME, 'read', 'report', 'e:xx:xx', 'c:xx:xx', 't:xx:xx', MODE, 'precision', 'skipfactor', 'zeropad').
 % 
 % All input arguments are optional. Input arguments can be in any order.
 %
@@ -418,6 +418,10 @@ function varargout = openNSx(varargin)
 %
 % 7.4.6.2: April 26, 2024
 %   - Add feature to disable data segmentation for file spec >=3.0
+%
+% 7.4.6.3: November 20, 2024
+%   - Fixed typo in help section regarding "zeropad" v "nozeropad"
+%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Define the NSx data structure and sub-branches.
@@ -427,7 +431,7 @@ NSx.MetaTags = struct('FileTypeID',[],'SamplingLabel',[],'ChannelCount',[],'Samp
                       'Timestamp', [], 'DataPoints', [], 'DataDurationSec', [], 'openNSxver', [], 'Filename', [], 'FilePath', [], ...
                       'FileExt', []);
 
-NSx.MetaTags.openNSxver = '7.4.6.2';
+NSx.MetaTags.openNSxver = '7.4.6.3';
 
 %% Check for the latest version of NPMK
 if exist('NPMKverChecker','file')==2
