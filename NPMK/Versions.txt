@@ -537,7 +537,15 @@ NPMK Version 2.8.2.0: 5 May 2014
 %   - Removed DataDuration and DataDurationSec from output
 %
 ***** NPMK Version 5.5.5.0 :June 5, 2024 *****
-% 6.2.4.0: September 30, 2024
+% 6.2.4.0: openNEV: September 30, 2024
 %   - Fixed timestamp reporting for comments in filespec 3.0 (David Kluger)
 %
-LATEST:5.5.5.0
+***** NPMK Version 5.5.6.0 : December 2, 2025 *****
+% 6.2.5.0: openNEV: July 16, 2025
+%   - Forced uint64 precision on comment timestamps (Toren)
+%   - Fixed bug in 2025b, which no longer accepts bad index syntax
+%
+% 7.4.6.3: openNSx: November 20, 2024
+%   - Fixed typo in help section regarding "zeropad" v "nozeropad"
+%
+LATEST:5.5.6.0
